@@ -74,6 +74,75 @@ uv run uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 uv run uvicorn main:app --host 0.0.0.0 --port 8001 --workers 4
 ```
 
+### Docker (Recommended for Production)
+
+#### Quick Start
+
+```bash
+# Build production image for current platform
+./docker-build.sh
+
+# Run the container
+docker run -d \
+  --name products-agent \
+  -p 8001:8001 \
+  --env-file .env \
+  products-agent:latest
+```
+
+#### Multi-Architecture Builds
+
+The build script supports building for multiple architectures:
+
+```bash
+# Build for both ARM64 and AMD64
+./docker-build.sh --multi-arch
+
+# Build for specific architecture
+./docker-build.sh --arm64    # ARM64 only
+./docker-build.sh --amd64    # AMD64 only
+```
+
+#### Development with Docker
+
+```bash
+# Build development image with debugging tools
+./docker-build.sh --dev
+
+# Run with hot reload (mount source code)
+docker run -d \
+  --name products-agent-dev \
+  -p 8001:8001 \
+  --env-file .env \
+  -v $(pwd):/app \
+  products-agent:latest
+```
+
+#### Registry Deployment
+
+```bash
+# Build and push to registry
+./docker-build.sh --multi-arch --push --registry myregistry.com/myproject
+
+# With custom tag
+./docker-build.sh --tag v1.0.0 --push --registry myregistry.com/myproject
+```
+
+#### Build Script Options
+
+```bash
+./docker-build.sh --help  # Show all options
+
+# Common options:
+--dev                     # Build development image
+--prod                    # Build production image (default)
+--multi-arch             # Build for arm64 and amd64
+--tag TAG               # Custom image tag
+--registry URL          # Registry to push to
+--push                  # Push to registry after build
+--dry-run              # Show commands without executing
+```
+
 ## API Endpoints
 
 ### Health Check
