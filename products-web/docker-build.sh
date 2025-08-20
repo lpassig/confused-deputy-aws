@@ -24,14 +24,14 @@ handle_error() {
 # Build for AMD64 (x86_64)
 build_amd64() {
     print_section "Building for AMD64 (x86_64)"
-    docker build --platform linux/amd64 -t products-web:amd64 . || handle_error "AMD64 build failed"
+    docker build --platform linux/amd64 --target production -t products-web:amd64 . || handle_error "AMD64 build failed"
     print_success "AMD64 build completed"
 }
 
 # Build for ARM64
 build_arm64() {
     print_section "Building for ARM64"
-    docker build --platform linux/arm64 -t products-web:arm64 . || handle_error "ARM64 build failed"
+    docker build --platform linux/arm64 --target production -t products-web:arm64 . || handle_error "ARM64 build failed"
     print_success "ARM64 build completed"
 }
 
@@ -39,7 +39,7 @@ build_arm64() {
 build_multi() {
     print_section "Building for both AMD64 and ARM64 using buildx"
     docker buildx create --use || handle_error "Failed to create buildx builder"
-    docker buildx build --platform linux/amd64,linux/arm64 -t products-web:latest . || handle_error "Multi-platform build failed"
+    docker buildx build --platform linux/amd64,linux/arm64 --target production -t products-web:latest . || handle_error "Multi-platform build failed"
     print_success "Multi-platform build completed"
 }
 
