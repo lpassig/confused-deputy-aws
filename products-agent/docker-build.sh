@@ -72,6 +72,7 @@ OPTIONS:
     --multi-arch            Build for multiple architectures (arm64, amd64)
     --arm64                 Build for ARM64 architecture only
     --amd64                 Build for AMD64 architecture only
+    --native                Build for native platform only (recommended for local builds)
     --push                  Push image to registry after build
     --no-load               Don't load image to local Docker (useful with --push)
     --build-arg ARG=VALUE   Pass build argument to Docker
@@ -128,6 +129,18 @@ parse_args() {
                 ;;
             --amd64)
                 PLATFORMS="linux/amd64"
+                shift
+                ;;
+            --native)
+                # Detect native platform
+                NATIVE_ARCH=$(docker version --format '{{.Server.Arch}}')
+                if [[ "$NATIVE_ARCH" == "arm64" ]]; then
+                    PLATFORMS="linux/arm64"
+                elif [[ "$NATIVE_ARCH" == "amd64" ]] || [[ "$NATIVE_ARCH" == "x86_64" ]]; then
+                    PLATFORMS="linux/amd64"
+                else
+                    PLATFORMS="linux/$NATIVE_ARCH"
+                fi
                 shift
                 ;;
             --push)

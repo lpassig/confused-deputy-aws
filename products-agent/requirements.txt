@@ -1,0 +1,9 @@
+strands-agents[ollama,openai]>=1.4.0
+strands-agents-tools>=0.2.3
+python-dotenv>=1.1.1
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+pyjwt[crypto]>=2.8.0
+cryptography>=41.0.0
+httpx>=0.25.0
+pydantic>=2.4.0

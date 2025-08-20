@@ -75,12 +75,11 @@ ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-# Install minimal runtime dependencies and uv
+# Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean \
-    && pip install --no-cache-dir uv
+    && apt-get clean
 
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser
@@ -90,10 +89,10 @@ WORKDIR /app
 RUN chown appuser:appuser /app
 
 # Copy dependency files first
-COPY pyproject.toml ./
+COPY requirements.txt ./
 
-# Install dependencies directly in production stage
-RUN uv pip install --system --no-cache-dir -r pyproject.toml
+# Install dependencies using pip for better cross-platform compatibility
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY --chown=appuser:appuser . .

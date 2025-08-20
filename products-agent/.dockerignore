@@ -63,6 +63,9 @@ docs/
 *.md
 !README.md
 
+# Allow requirements.txt for Docker builds
+!requirements.txt
+
 # Docker files (excluding the ones we need)
 docker-compose.yml
 docker-compose.override.yml
