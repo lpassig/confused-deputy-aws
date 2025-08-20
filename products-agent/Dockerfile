@@ -10,7 +10,7 @@ ARG PYTHON_VERSION=3.12
 # =============================================================================
 # Stage 1: Base image with uv
 # =============================================================================
-FROM python:${PYTHON_VERSION}-slim-bookworm as base
+FROM python:${PYTHON_VERSION}-slim-bookworm AS base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y \
 # =============================================================================
 # Stage 2: Dependencies installation
 # =============================================================================
-FROM base as deps
+FROM base AS deps
 
 # Create app directory
 WORKDIR /app
@@ -42,7 +42,7 @@ RUN uv pip install --system --no-cache-dir -r pyproject.toml
 # =============================================================================
 # Stage 3: Development image (optional, for development builds)
 # =============================================================================
-FROM deps as development
+FROM deps AS development
 
 # Copy application code
 COPY . .
@@ -66,7 +66,7 @@ CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001
 # =============================================================================
 # Stage 4: Production image (optimized)
 # =============================================================================
-FROM python:${PYTHON_VERSION}-slim-bookworm as production
+FROM python:${PYTHON_VERSION}-slim-bookworm AS production
 
 # Set environment variables for production
 ENV PYTHONUNBUFFERED=1 \
@@ -75,11 +75,12 @@ ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-# Install minimal runtime dependencies
+# Install minimal runtime dependencies and uv
 RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && apt-get clean \
+    && pip install --no-cache-dir uv
 
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser
@@ -88,9 +89,11 @@ RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser
 WORKDIR /app
 RUN chown appuser:appuser /app
 
-# Copy Python dependencies from deps stage
-COPY --from=deps /usr/local/lib/python${PYTHON_VERSION}/site-packages /usr/local/lib/python${PYTHON_VERSION}/site-packages
-COPY --from=deps /usr/local/bin /usr/local/bin
+# Copy dependency files first
+COPY pyproject.toml ./
+
+# Install dependencies directly in production stage
+RUN uv pip install --system --no-cache-dir -r pyproject.toml
 
 # Copy application code
 COPY --chown=appuser:appuser . .
