@@ -5,7 +5,7 @@
 # =============================================================================
 
 # Build arguments for multi-architecture support
-ARG PYTHON_VERSION=3.11
+ARG PYTHON_VERSION=3.12
 
 # =============================================================================
 # Stage 1: Base image with uv

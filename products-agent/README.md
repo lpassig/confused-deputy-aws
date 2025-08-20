@@ -25,10 +25,15 @@ A FastAPI application that exposes the ProductsAgent with JWT authentication and
 
 ## Prerequisites
 
-- Python 3.11.4+
+### Local Development
+- Python 3.11.4+ (or Python 3.12 recommended)
 - uv package manager
 - Microsoft Entra ID application registration
 - MCP server running on localhost:8000
+
+### Docker (Recommended)
+- Docker with Buildx support
+- Docker images use Python 3.12 by default
 
 ## Environment Configuration
 
