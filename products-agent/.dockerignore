@@ -1,0 +1,119 @@
+# =============================================================================
+# Docker ignore file for products-agent
+# Excludes unnecessary files from Docker build context
+# =============================================================================
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.envrc
+
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+ENV/
+.env/
+
+# UV package manager
+uv.lock
+.uv/
+
+# Python version management
+.python-version
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+logs/
+tmp/
+
+# Test and coverage files
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Docker files (excluding the ones we need)
+docker-compose.yml
+docker-compose.override.yml
+Dockerfile.dev
+Dockerfile.test
+
+# Build and distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# OS generated files
+Thumbs.db
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Node.js (if any frontend components)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Kubernetes and deployment files
+k8s/
+kubernetes/
+*.yaml
+*.yml
+!docker-compose.yml
+
+# Backup files
+*.backup
+*.bak
+*.swp
+
+# Scripts that might contain secrets
+setup_*.sh
+deploy_*.sh
+run_*.sh
+!docker-build.sh
+
+# Test files and directories
+test/
+tests/
+*_test.py
+*_tests.py
+
+# Configuration that might contain secrets
+config.ini
+config.yaml
+config.json
+!config.example.*
