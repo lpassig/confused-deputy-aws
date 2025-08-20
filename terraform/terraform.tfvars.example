@@ -1,0 +1,45 @@
+# Copy this file to terraform.tfvars and customize the values
+
+# General
+resource_prefix = "hcp-vault-docdb"  # Will be combined with 3-char random suffix
+aws_region      = "us-east-1"
+
+# HCP Configuration
+hvn_id         = "main-hvn"
+hvn_cidr_block = "172.25.16.0/20"  # Non-overlapping with AWS VPC
+hvn_region     = "us-east-1"
+
+vault_cluster_id = "vault-cluster"
+vault_tier       = "plus"
+
+# AWS VPC Configuration
+vpc_cidr             = "10.0.0.0/16"   # Non-overlapping with HVN
+availability_zones   = ["us-east-1a", "us-east-1b"]
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.10.0/24", "10.0.20.0/24"]
+
+# DocumentDB Configuration
+docdb_cluster_identifier = "my-docdb-cluster"
+docdb_master_username    = "docdbadmin"
+docdb_master_password    = "ChangeMe123!"  # Change this to a secure password
+docdb_instance_class     = "db.t3.medium"
+docdb_instance_count     = 1
+
+# Bastion Host Configuration  
+bastion_instance_type = "t3.medium"
+bastion_key_name      = "bastion-key"
+
+# Common Tags
+common_tags = {
+  Environment = "dev"
+  Project     = "hcp-vault-documentdb"
+  ManagedBy   = "terraform"
+}
+
+# JWT Auth Configuration
+jwt_oidc_discovery_url = "https://your-oidc-provider.com/.well-known/openid_configuration"
+jwt_bound_audiences    = ["your-audience-1", "your-audience-2"]
+
+# Identity Group Aliases (optional - defaults are provided)
+readonly_group_alias_name  = "readonly-group"
+readwrite_group_alias_name = "readwrite-group"
