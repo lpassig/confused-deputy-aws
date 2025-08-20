@@ -288,10 +288,6 @@ docs/_build/
 # =============================================================================
 # PROJECT SPECIFIC EXCLUSIONS
 # =============================================================================
-# Ignore any existing git repositories in subdirectories
-# (like the one in products-mcp)
-products-mcp/
-
 # Backup files
 *.backup
 *.bak
