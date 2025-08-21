@@ -119,5 +119,5 @@ USER appuser
 # Expose port
 EXPOSE 8501
 
-# Run with hot reload for development
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.fileWatcherType=poll"]
+# Run app
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.fileWatcherType=none"]

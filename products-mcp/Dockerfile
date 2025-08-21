@@ -1,8 +1,8 @@
-# syntax=docker/dockerfile:1
-# Multi-stage build for Python application supporting both ARM64 and AMD64
 
-# Stage 1: Build stage
-FROM --platform=$BUILDPLATFORM python:3.12-slim AS builder
+# syntax=docker/dockerfile:1
+# Single-stage build for Python application supporting both ARM64 and AMD64
+
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -11,25 +11,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only necessary files first
+# Copy dependency files first for better cache
 COPY pyproject.toml README.md ./
 
-# Install dependencies using pip-tools
+# Install pip-tools to generate requirements.txt
 RUN pip install --no-cache-dir pip-tools && \
-    pip-compile pyproject.toml --output-file requirements.txt && \
-    pip install --no-cache-dir -r requirements.txt
+    pip-compile pyproject.toml --output-file requirements.txt
+
+# Install runtime dependencies (built for the target architecture)
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .
-COPY .env /app/.env
-
-# Stage 2: Runtime stage
-FROM python:3.12-slim AS runtime
-
-WORKDIR /app
 
 # Create non-root user
-RUN useradd -m -u 1000 appuser
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -37,14 +33,6 @@ ENV PYTHONUNBUFFERED=1 \
     SERVER_PORT=8000 \
     PATH="/home/appuser/.local/bin:$PATH" \
     PYTHONPATH="/app"
-
-# Copy only necessary files from builder
-COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
-COPY --from=builder /app/*.py /app/
-COPY --from=builder /app/.env /app/
-
-# Set ownership
-RUN chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser

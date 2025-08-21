@@ -153,3 +153,44 @@ output "products_agent_scopes" {
   description = "The OAuth2 permission scopes of the Products Agent Azure AD application"
   value       = module.azure_ad_app.products_agent_scopes
 }
+
+# EKS outputs
+output "eks_cluster_name" {
+  description = "Name of the EKS cluster"
+  value       = module.aws_eks.cluster_name
+}
+
+output "eks_cluster_endpoint" {
+  description = "Endpoint for EKS control plane"
+  value       = module.aws_eks.cluster_endpoint
+}
+
+output "eks_cluster_version" {
+  description = "The Kubernetes server version for the EKS cluster"
+  value       = module.aws_eks.cluster_version
+}
+
+output "eks_cluster_status" {
+  description = "Status of the EKS cluster"
+  value       = module.aws_eks.cluster_status
+}
+
+output "eks_node_group_name" {
+  description = "Name of the EKS Node Group"
+  value       = module.aws_eks.node_group_name
+}
+
+output "eks_node_group_status" {
+  description = "Status of the EKS Node Group"
+  value       = module.aws_eks.node_group_status
+}
+
+output "eks_kubeconfig_path" {
+  description = "Path to the generated kubeconfig file"
+  value       = module.aws_eks.kubeconfig_path
+}
+
+output "eks_kubectl_command" {
+  description = "Command to use kubectl with the generated kubeconfig"
+  value       = module.aws_eks.kubectl_command
+}

@@ -291,3 +291,13 @@ docs/_build/
 # Backup files
 *.backup
 *.bak
+
+# Specific test documentation files (moved to test_oauth2_flow)
+terraform/test_oauth2_flow/cognito_steps.md
+terraform/test_oauth2_flow/oauth2_entra_flow.md
+
+# Development notes and prompts
+terraform/prompt.md
+terraform/steps.md
+
+k8s/

@@ -88,7 +88,30 @@ module "bastion" {
   tags = var.common_tags
 }
 
-# Module 5: Azure AD Applications
+# Module 5: AWS EKS Cluster
+module "aws_eks" {
+  source = "./modules/aws-eks"
+
+  name_prefix        = local.name_prefix
+  vpc_id             = module.aws_networking.vpc_id
+  private_subnet_ids = module.aws_networking.private_subnet_ids
+
+  kubernetes_version  = var.eks_kubernetes_version
+  public_access_cidrs = var.eks_public_access_cidrs
+  cluster_log_types   = var.eks_cluster_log_types
+  kubeconfig_path     = var.eks_kubeconfig_path
+
+  # Node Group Configuration
+  node_group_capacity_type  = var.eks_node_group_capacity_type
+  node_group_instance_types = var.eks_node_group_instance_types
+  node_group_desired_size   = var.eks_node_group_desired_size
+  node_group_max_size       = var.eks_node_group_max_size
+  node_group_min_size       = var.eks_node_group_min_size
+
+  tags = var.common_tags
+}
+
+# Module 6: Azure AD Applications
 module "azure_ad_app" {
   source = "./modules/azure-ad-app"
 

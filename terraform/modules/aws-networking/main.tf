@@ -30,7 +30,11 @@ resource "aws_subnet" "public" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-public-subnet-${count.index + 1}"
     Type = "public"
-  })
+    },
+    {
+      "kubernetes.io/role/elb" = 1
+    }
+  )
 }
 
 # Create private subnets
@@ -44,7 +48,11 @@ resource "aws_subnet" "private" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-private-subnet-${count.index + 1}"
     Type = "private"
-  })
+    },
+    {
+      "kubernetes.io/role/internal-elb" = 1
+    }
+  )
 }
 
 # Create NAT Gateway EIPs

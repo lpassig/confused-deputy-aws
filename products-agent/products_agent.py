@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
@@ -67,9 +68,13 @@ class ProductsAgent:
         # Use provided token or fall back to default for testing
         token = jwt_token or DEFAULT_JWT_TOKEN
 
+        # Load MCP URL from environment variable
+        mcp_url = os.getenv("PRODUCTS_MCP_SERVER_URL", "http://localhost:8000/mcp")
+        logger.info(f"MCP URL: {mcp_url}")
+
         mcp_client = MCPClient(
             lambda: streamablehttp_client(
-                "http://localhost:8000/mcp",
+                mcp_url,
                 headers={"Authorization": f"Bearer {token}"},
             )
         )

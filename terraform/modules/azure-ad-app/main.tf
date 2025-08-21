@@ -117,7 +117,7 @@ resource "azuread_service_principal_delegated_permission_grant" "products_mcp" {
 # Set the identifier URI for the Products MCP application
 resource "azuread_application_identifier_uri" "products_mcp" {
   application_id = azuread_application.products_mcp.id
-  identifier_uri = "api://${azuread_application.products_mcp.application_id}"
+  identifier_uri = "api://${azuread_application.products_mcp.client_id}"
 }
 
 
@@ -168,7 +168,7 @@ resource "azuread_application" "products_agent" {
   }
 
   required_resource_access {
-    resource_app_id = azuread_application.products_mcp.application_id #data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
+    resource_app_id = azuread_application.products_mcp.client_id #data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
 
     resource_access {
       id   = azuread_service_principal.products_mcp.oauth2_permission_scope_ids["Products.Read"]
@@ -235,7 +235,7 @@ resource "azuread_service_principal_delegated_permission_grant" "products_agent_
 # Set the identifier URI for the Products Agent API application
 resource "azuread_application_identifier_uri" "products_agent" {
   application_id = azuread_application.products_agent.id
-  identifier_uri = "api://${azuread_application.products_agent.application_id}"
+  identifier_uri = "api://${azuread_application.products_agent.client_id}"
 }
 
 # Create client secret for the Products Agent API service principal
@@ -262,7 +262,7 @@ resource "azuread_application" "products_web" {
   group_membership_claims = var.include_groups_claim ? ["SecurityGroup"] : []
 
   required_resource_access {
-    resource_app_id = azuread_application.products_agent.application_id #data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
+    resource_app_id = azuread_application.products_agent.client_id #data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
 
     resource_access {
       id   = azuread_service_principal.products_agent.oauth2_permission_scope_ids["Agent.Invoke"]
@@ -327,7 +327,7 @@ resource "azuread_service_principal_delegated_permission_grant" "products_web_pr
 # Set the identifier URI for the Products Web application
 resource "azuread_application_identifier_uri" "products_web" {
   application_id = azuread_application.products_web.id
-  identifier_uri = "api://${azuread_application.products_web.application_id}"
+  identifier_uri = "api://${azuread_application.products_web.client_id}"
 }
 
 # Create client secret for the Products Web application

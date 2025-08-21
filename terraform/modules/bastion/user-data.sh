@@ -1,8 +1,26 @@
 #!/bin/bash
 set -e
 # Update and install dependencies
+
 sudo apt-get update -y
 sudo apt-get install -y gnupg unzip curl wget jq
+
+# Install Docker (official instructions for Ubuntu 22.04)
+sudo apt-get install -y ca-certificates apt-transport-https software-properties-common lsb-release
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update -y
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+
+# Install Docker Compose (v2, as a Docker plugin)
+sudo apt-get install -y docker-compose-plugin
+
+# Add ubuntu user to docker group
+sudo usermod -aG docker ubuntu
 
 # Install Mongosh Shell for Ubuntu Jammy (22.04)
 # https://www.mongodb.com/docs/mongodb-shell/install/
