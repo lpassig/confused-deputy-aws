@@ -46,7 +46,7 @@ When updating or deleting products, use search_products tool first to get the pr
 
 
 # Default token for testing - this will be replaced by the on-behalf-of token
-DEFAULT_JWT_TOKEN = None  # No default token
+DEFAULT_JWT_TOKEN = None  # No default token - must be provided
 
 
 class ProductsAgent:
