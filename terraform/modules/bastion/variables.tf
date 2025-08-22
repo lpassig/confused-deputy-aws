@@ -62,27 +62,7 @@ variable "docdb_password" {
   sensitive   = true
 }
 
-variable "jwt_oidc_discovery_url" {
-  description = "OIDC Discovery URL for JWT auth"
-  type        = string
-}
-
-variable "jwt_bound_audiences" {
-  description = "List of audiences that are allowed to authenticate"
-  type        = string
-}
-
-variable "jwt_bound_issuer" {
-  description = "OIDC Bound Issuer for JWT auth"
-  type        = string
-}
-
-variable "readonly_group_alias_name" {
-  description = "Name for the readonly identity group alias"
-  type        = string
-}
-
-variable "readwrite_group_alias_name" {
-  description = "Name for the readwrite identity group alias"
-  type        = string
+variable "public_subnet_ids" {
+  description = "List of public subnet IDs for the ALB"
+  type        = list(string)
 }

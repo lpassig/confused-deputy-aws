@@ -104,4 +104,3 @@ resource "vault_identity_group_alias" "readwrite_alias" {
   mount_accessor = vault_jwt_auth_backend.jwt.accessor
   canonical_id   = vault_identity_group.readwrite.id
 }
-

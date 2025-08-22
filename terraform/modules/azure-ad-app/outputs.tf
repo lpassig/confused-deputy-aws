@@ -12,6 +12,10 @@ output "products_mcp_scopes" {
   value       = [for scope in data.azuread_application.products_mcp.api[0].oauth2_permission_scopes : "api://${data.azuread_application.products_mcp.client_id}/${scope.value}"]
 }
 
+# output "products_mcp_identifier_uri" {
+#   value = azuread_application.products_mcp.identifier_uris
+# }
+
 # ========================================
 # PRODUCTS AGENT APPLICATION OUTPUTS
 # ========================================
@@ -26,6 +30,10 @@ output "products_agent_client_secret" {
   value       = azuread_application_password.products_agent.value
   sensitive   = true
 }
+
+# output "products_agent_identifier_uri" {
+#   value = azuread_application.products_agent.identifier_uris
+# }
 
 output "products_agent_scopes" {
   description = "The OAuth2 permission scopes of the Products Agent Azure AD application"
@@ -47,4 +55,7 @@ output "products_web_client_secret" {
   sensitive   = true
 }
 
+# output "products_web_identifier_uri" {
+#   value = azuread_application.products_web.identifier_uris
+# }
 

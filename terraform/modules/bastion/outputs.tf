@@ -28,23 +28,28 @@ output "key_pair_name" {
   value       = aws_key_pair.main.key_name
 }
 
-# Vault JWT Auth outputs
-output "jwt_auth_accessor" {
-  description = "Accessor of the JWT auth backend"
-  value       = vault_jwt_auth_backend.jwt.accessor
+# ALB and TLS Certificate outputs
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = aws_lb.main.dns_name
 }
 
-output "jwt_auth_path" {
-  description = "Path of the JWT auth backend"
-  value       = vault_jwt_auth_backend.jwt.path
+output "alb_zone_id" {
+  description = "Hosted zone ID of the Application Load Balancer"
+  value       = aws_lb.main.zone_id
 }
 
-output "readonly_group_id" {
-  description = "ID of the readonly identity group"
-  value       = vault_identity_group.readonly.id
+output "alb_arn" {
+  description = "ARN of the Application Load Balancer"
+  value       = aws_lb.main.arn
 }
 
-output "readwrite_group_id" {
-  description = "ID of the readwrite identity group"
-  value       = vault_identity_group.readwrite.id
+output "certificate_arn" {
+  description = "ARN of the ACM certificate"
+  value       = aws_acm_certificate.alb_cert_with_dns.arn
+}
+
+output "alb_https_url" {
+  description = "HTTPS URL for the Application Load Balancer"
+  value       = "https://${aws_lb.main.dns_name}"
 }

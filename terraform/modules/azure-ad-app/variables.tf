@@ -40,3 +40,9 @@ variable "owners" {
   type        = set(string)
   default     = []
 }
+
+variable "alb_https_url" {
+  description = "The HTTPS URL of the Application Load Balancer"
+  type        = string
+  default     = "https://products-web.hashidemo.com"
+}

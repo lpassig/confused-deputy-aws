@@ -1,0 +1,4 @@
+include:
+  - ./products-web/docker-compose.yml
+  - ./products-agent/docker-compose.yml
+  - ./products-mcp/docker-compose.yml

@@ -69,7 +69,7 @@ resource "aws_docdb_cluster" "main" {
   vpc_security_group_ids          = [aws_security_group.documentdb.id]
   db_cluster_parameter_group_name = aws_docdb_cluster_parameter_group.main.name
 
-  storage_encrypted = true
+  storage_encrypted = false
 
   tags = merge(var.tags, {
     Name = var.cluster_identifier

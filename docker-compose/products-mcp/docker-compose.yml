@@ -1,0 +1,8 @@
+services:
+  products-mcp:
+    image: panchalravi/products-mcp:latest
+    container_name: products-mcp
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./.env:/app/.env

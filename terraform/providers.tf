@@ -17,8 +17,8 @@ provider "random" {}
 
 provider "vault" {
   # Configuration options
-  address   = module.hcp_infra.vault_public_endpoint_url
-  token     = module.hcp_infra.vault_admin_token
+  address   = module.hcp_vault.vault_public_endpoint_url
+  token     = module.hcp_vault.vault_admin_token
   namespace = "admin"
 }
 
@@ -35,5 +35,4 @@ provider "azurerm" {
   tenant_id       = var.azure_tenant_id
   client_id       = var.azure_client_id
   client_secret   = var.azure_client_secret
-  subscription_id = var.azure_subscription_id
 }

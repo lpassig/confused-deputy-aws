@@ -7,32 +7,32 @@ output "resource_name_prefix" {
 # HCP Infrastructure outputs
 # output "hvn_id" {
 #   description = "ID of the HVN"
-#   value       = module.hcp_infra.hvn_id
+#   value       = module.hcp_vault.hvn_id
 # }
 
 # output "hvn_cidr_block" {
 #   description = "CIDR block of the HVN"
-#   value       = module.hcp_infra.hvn_cidr_block
+#   value       = module.hcp_vault.hvn_cidr_block
 # }
 
 # output "vault_cluster_id" {
 #   description = "ID of the Vault cluster"
-#   value       = module.hcp_infra.vault_cluster_id
+#   value       = module.hcp_vault.vault_cluster_id
 # }
 
 output "vault_private_endpoint_url" {
   description = "Private endpoint URL of the Vault cluster"
-  value       = module.hcp_infra.vault_private_endpoint_url
+  value       = module.hcp_vault.vault_private_endpoint_url
 }
 
 output "vault_public_endpoint_url" {
   description = "Public endpoint URL of the Vault cluster"
-  value       = module.hcp_infra.vault_public_endpoint_url
+  value       = module.hcp_vault.vault_public_endpoint_url
 }
 
 output "vault_admin_token" {
   description = "Admin token for the Vault cluster"
-  value       = module.hcp_infra.vault_admin_token
+  value       = module.hcp_vault.vault_admin_token
   sensitive   = true
 }
 
@@ -65,17 +65,17 @@ output "vault_admin_token" {
 # DocumentDB outputs
 output "documentdb_cluster_endpoint" {
   description = "DocumentDB cluster endpoint"
-  value       = module.documentdb.cluster_endpoint
+  value       = module.aws_documentdb.cluster_endpoint
 }
 
 # output "documentdb_cluster_reader_endpoint" {
 #   description = "DocumentDB cluster reader endpoint"
-#   value       = module.documentdb.cluster_reader_endpoint
+#   value       = module.aws_documentdb.cluster_reader_endpoint
 # }
 
 output "documentdb_cluster_port" {
   description = "DocumentDB cluster port"
-  value       = module.documentdb.cluster_port
+  value       = module.aws_documentdb.cluster_port
 }
 
 # Bastion outputs
@@ -154,6 +154,15 @@ output "products_agent_scopes" {
   value       = module.azure_ad_app.products_agent_scopes
 }
 
+# output "identifier_uris" {
+#   description = "The identifier URIs of the Products MCP, Agent, and Web Azure AD applications"
+#   value = {
+#     mcp   = module.azure_ad_app.products_mcp_identifier_uri
+#     agent = module.azure_ad_app.products_agent_identifier_uri
+#     web   = module.azure_ad_app.products_web_identifier_uri
+#   }
+# }
+
 # EKS outputs
 output "eks_cluster_name" {
   description = "Name of the EKS cluster"
@@ -170,20 +179,20 @@ output "eks_cluster_version" {
   value       = module.aws_eks.cluster_version
 }
 
-output "eks_cluster_status" {
-  description = "Status of the EKS cluster"
-  value       = module.aws_eks.cluster_status
-}
+# output "eks_cluster_status" {
+#   description = "Status of the EKS cluster"
+#   value       = module.aws_eks.cluster_status
+# }
 
-output "eks_node_group_name" {
-  description = "Name of the EKS Node Group"
-  value       = module.aws_eks.node_group_name
-}
+# output "eks_node_group_name" {
+#   description = "Name of the EKS Node Group"
+#   value       = module.aws_eks.node_group_name
+# }
 
-output "eks_node_group_status" {
-  description = "Status of the EKS Node Group"
-  value       = module.aws_eks.node_group_status
-}
+# output "eks_node_group_status" {
+#   description = "Status of the EKS Node Group"
+#   value       = module.aws_eks.node_group_status
+# }
 
 output "eks_kubeconfig_path" {
   description = "Path to the generated kubeconfig file"
@@ -193,4 +202,30 @@ output "eks_kubeconfig_path" {
 output "eks_kubectl_command" {
   description = "Command to use kubectl with the generated kubeconfig"
   value       = module.aws_eks.kubectl_command
+}
+
+# ALB and TLS Certificate Outputs
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = module.bastion.alb_dns_name
+}
+
+# output "alb_zone_id" {
+#   description = "Hosted zone ID of the Application Load Balancer"
+#   value       = module.bastion.alb_zone_id
+# }
+
+# output "alb_arn" {
+#   description = "ARN of the Application Load Balancer"
+#   value       = module.bastion.alb_arn
+# }
+
+# output "certificate_arn" {
+#   description = "ARN of the ACM certificate"
+#   value       = module.bastion.certificate_arn
+# }
+
+output "alb_https_url" {
+  description = "HTTPS URL for the Application Load Balancer"
+  value       = module.bastion.alb_https_url
 }

@@ -7,6 +7,15 @@ resource "random_uuid" "products_mcp_read_id" {}
 resource "random_uuid" "products_mcp_write_id" {}
 resource "random_uuid" "products_mcp_list_id" {}
 resource "random_uuid" "products_mcp_delete_id" {}
+resource "random_id" "app" {
+  byte_length = 4
+}
+
+locals {
+  products_agent_identifier_uri = "api://products-agent-${random_id.app.hex}"
+  products_web_identifier_uri    = "api://products-web-${random_id.app.hex}"
+  products_mcp_identifier_uri    = "api://products-mcp-${random_id.app.hex}"
+}
 
 resource "azuread_application" "products_mcp" {
   display_name     = "ProductsMCP"
@@ -114,10 +123,16 @@ resource "azuread_service_principal_delegated_permission_grant" "products_mcp" {
   claim_values                         = ["User.Read.All", "Group.Read.All"]
 }
 
+resource "time_sleep" "wait_for_products_mcp" {
+  depends_on = [azuread_application.products_mcp]
+  create_duration = "30s"
+}
+
 # Set the identifier URI for the Products MCP application
 resource "azuread_application_identifier_uri" "products_mcp" {
   application_id = azuread_application.products_mcp.id
-  identifier_uri = "api://${azuread_application.products_mcp.client_id}"
+  identifier_uri = "api://${azuread_application.products_mcp.client_id}" #local.products_mcp_identifier_uri
+  depends_on = [ time_sleep.wait_for_products_mcp ]
 }
 
 
@@ -168,7 +183,7 @@ resource "azuread_application" "products_agent" {
   }
 
   required_resource_access {
-    resource_app_id = azuread_application.products_mcp.client_id #data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
+    resource_app_id = azuread_application.products_mcp.client_id
 
     resource_access {
       id   = azuread_service_principal.products_mcp.oauth2_permission_scope_ids["Products.Read"]
@@ -232,10 +247,16 @@ resource "azuread_service_principal_delegated_permission_grant" "products_agent_
 #   ]
 # }
 
+resource "time_sleep" "wait_for_products_agent" {
+  depends_on = [azuread_application.products_agent]
+  create_duration = "30s"
+}
+
 # Set the identifier URI for the Products Agent API application
 resource "azuread_application_identifier_uri" "products_agent" {
   application_id = azuread_application.products_agent.id
-  identifier_uri = "api://${azuread_application.products_agent.client_id}"
+  identifier_uri = "api://${azuread_application.products_agent.client_id}" #local.products_agent_identifier_uri 
+  depends_on = [ time_sleep.wait_for_products_agent ]
 }
 
 # Create client secret for the Products Agent API service principal
@@ -262,7 +283,7 @@ resource "azuread_application" "products_web" {
   group_membership_claims = var.include_groups_claim ? ["SecurityGroup"] : []
 
   required_resource_access {
-    resource_app_id = azuread_application.products_agent.client_id #data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
+    resource_app_id = azuread_application.products_agent.client_id 
 
     resource_access {
       id   = azuread_service_principal.products_agent.oauth2_permission_scope_ids["Agent.Invoke"]
@@ -272,7 +293,7 @@ resource "azuread_application" "products_web" {
 
   # Web platform configuration
   web {
-    homepage_url = "https://localhost"
+    homepage_url = "${var.alb_https_url}"
 
     # Configure implicit grant settings
     implicit_grant {
@@ -280,7 +301,8 @@ resource "azuread_application" "products_web" {
       id_token_issuance_enabled     = true
     }
     redirect_uris = [
-      "http://localhost:8501/oauth2callback",
+      "${var.alb_https_url}/oauth2callback",
+      "http://localhost:8501/oauth2callback"
     ]
   }
 
@@ -324,10 +346,16 @@ resource "azuread_service_principal_delegated_permission_grant" "products_web_pr
 #   ]
 # }
 
+resource "time_sleep" "wait_for_products_web" {
+  depends_on = [azuread_application.products_web]
+  create_duration = "30s"
+}
+
 # Set the identifier URI for the Products Web application
 resource "azuread_application_identifier_uri" "products_web" {
   application_id = azuread_application.products_web.id
-  identifier_uri = "api://${azuread_application.products_web.client_id}"
+  identifier_uri = "api://${azuread_application.products_web.client_id}" #local.products_web_identifier_uri
+  depends_on = [ time_sleep.wait_for_products_web ]
 }
 
 # Create client secret for the Products Web application

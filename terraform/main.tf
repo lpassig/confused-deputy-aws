@@ -11,8 +11,8 @@ locals {
 }
 
 # Module 1: HCP Infrastructure (HVN + Vault)
-module "hcp_infra" {
-  source = "./modules/hcp-infra"
+module "hcp_vault" {
+  source = "./modules/hcp-vault"
 
   hvn_id           = "${local.name_prefix}-${var.hvn_id}"
   hvn_cidr_block   = var.hvn_cidr_block
@@ -34,16 +34,16 @@ module "aws_networking" {
   private_subnet_cidrs = var.private_subnet_cidrs
 
   # HCP HVN information for peering
-  hvn_id         = module.hcp_infra.hvn_id
-  hvn_self_link  = module.hcp_infra.hvn_self_link
+  hvn_id         = module.hcp_vault.hvn_id
+  hvn_self_link  = module.hcp_vault.hvn_self_link
   hvn_cidr_block = var.hvn_cidr_block
 
   tags = var.common_tags
 }
 
 # Module 3: AWS DocumentDB
-module "documentdb" {
-  source = "./modules/documentdb"
+module "aws_documentdb" {
+  source = "./modules/aws-documentdb"
 
   name_prefix        = local.name_prefix
   cluster_identifier = "${local.name_prefix}-${var.docdb_cluster_identifier}"
@@ -62,33 +62,27 @@ module "documentdb" {
 # Module 4: Bastion Host
 module "bastion" {
   source = "./modules/bastion"
-
   name_prefix   = local.name_prefix
   instance_type = var.bastion_instance_type
   key_name      = "${local.name_prefix}-${var.bastion_key_name}"
 
-  vpc_id           = module.aws_networking.vpc_id
-  public_subnet_id = module.aws_networking.public_subnet_ids[0]
-  documentdb_sg_id = module.documentdb.documentdb_security_group_id
+  vpc_id             = module.aws_networking.vpc_id
+  public_subnet_id   = module.aws_networking.public_subnet_ids[0]
+  public_subnet_ids  = module.aws_networking.public_subnet_ids
+  documentdb_sg_id   = module.aws_documentdb.documentdb_security_group_id
 
-  vault_public_endpoint_url = module.hcp_infra.vault_public_endpoint_url
-  vault_admin_token         = module.hcp_infra.vault_admin_token
+  vault_public_endpoint_url = module.hcp_vault.vault_public_endpoint_url
+  vault_admin_token         = module.hcp_vault.vault_admin_token
 
-  docdb_cluster_endpoint = module.documentdb.cluster_endpoint
+  docdb_cluster_endpoint = module.aws_documentdb.cluster_endpoint
   docdb_username         = var.docdb_master_username
   docdb_password         = var.docdb_master_password
-
-  # JWT Auth configuration
-  jwt_oidc_discovery_url     = var.jwt_oidc_discovery_url
-  jwt_bound_issuer           = var.jwt_bound_issuer
-  jwt_bound_audiences        = var.jwt_bound_audiences
-  readonly_group_alias_name  = var.readonly_group_alias_name
-  readwrite_group_alias_name = var.readwrite_group_alias_name
 
   tags = var.common_tags
 }
 
-# Module 5: AWS EKS Cluster
+
+# AWS EKS Cluster
 module "aws_eks" {
   source = "./modules/aws-eks"
 
@@ -111,8 +105,26 @@ module "aws_eks" {
   tags = var.common_tags
 }
 
-# Module 6: Azure AD Applications
+# Module 5: Azure AD Applications
 module "azure_ad_app" {
   source = "./modules/azure-ad-app"
+  alb_https_url = module.bastion.alb_https_url
+}
 
+# Module 6: Vault Authentication and Database Configuration
+module "vault_auth" {
+  source = "./modules/vault-auth"
+
+  docdb_cluster_endpoint = module.aws_documentdb.cluster_endpoint
+  docdb_username         = var.docdb_master_username
+  docdb_password         = var.docdb_master_password
+
+  # JWT Auth configuration
+  jwt_oidc_discovery_url     = var.jwt_oidc_discovery_url
+  jwt_bound_issuer           = var.jwt_bound_issuer
+  jwt_bound_audiences        = module.azure_ad_app.products_mcp_client_id
+  readonly_group_alias_name  = var.readonly_group_alias_name
+  readwrite_group_alias_name = var.readwrite_group_alias_name
+
+  depends_on = [module.hcp_vault]
 }

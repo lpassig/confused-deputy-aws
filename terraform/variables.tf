@@ -146,11 +146,6 @@ variable "jwt_bound_issuer" {
   type        = string
 }
 
-variable "jwt_bound_audiences" {
-  description = "List of audiences that are allowed to authenticate"
-  type        = string
-}
-
 variable "readonly_group_alias_name" {
   description = "Name for the readonly identity group alias"
   type        = string

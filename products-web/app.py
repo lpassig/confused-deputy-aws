@@ -381,16 +381,16 @@ def render_token_details():
 
 def render_chat_interface():
     """Render the agentic chat interface"""
-    st.header("🤖 ProductsAgent Chat")
+    st.header("🤖 Vault-Powered Agent")
 
     # Check API health
     if st.session_state.api_status is None:
-        with st.spinner("Checking ProductsAgent API..."):
+        with st.spinner("Checking Agent API..."):
             st.session_state.api_status = check_api_health()
 
     if not st.session_state.api_status:
-        st.error(f"⚠️ ProductsAgent API is not available at {PRODUCTS_API_BASE_URL}")
-        st.info("Please ensure the ProductsAgent API is running and accessible.")
+        st.error(f"⚠️ Agent API is not available at {PRODUCTS_API_BASE_URL}")
+        st.info("Please ensure the Agent API is running and accessible.")
         if st.button("🔄 Retry Connection"):
             st.session_state.api_status = None
             st.rerun()
@@ -507,7 +507,7 @@ def main():
     # Header with logout button
     col1, col2 = st.columns([4, 1])
     with col1:
-        st.title("🤖 Microsoft Entra ID OAuth & ProductsAgent Chat")
+        st.title("🫆 Secure Agentic Demo: HCP Vault x Bedrock x Entra ID ")
     with col2:
         if "token" in st.session_state:
             st.markdown('<div class="logout-button">', unsafe_allow_html=True)
@@ -580,7 +580,7 @@ def main():
         st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
         # Create tabs for different sections
-        tab1, tab2 = st.tabs(["🤖 ProductsAgent Chat", "🔍 Token Information"])
+        tab1, tab2 = st.tabs(["🤖 Chat", "🔍 Token Information"])
 
         with tab1:
             render_chat_interface()

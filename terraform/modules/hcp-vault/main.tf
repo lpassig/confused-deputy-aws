@@ -14,7 +14,7 @@ resource "hcp_vault_cluster" "main" {
   public_endpoint = true
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
