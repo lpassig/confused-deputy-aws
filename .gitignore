@@ -300,4 +300,7 @@ terraform/test_oauth2_flow/oauth2_entra_flow.md
 terraform/prompt.md
 terraform/steps.md
 
+# AWS EKS module (excluded from version control)
+terraform/modules/aws-eks/
+
 k8s/
