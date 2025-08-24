@@ -146,17 +146,17 @@ variable "jwt_bound_issuer" {
   type        = string
 }
 
-variable "readonly_group_alias_name" {
-  description = "Name for the readonly identity group alias"
-  type        = string
-  default     = "readonly-group"
-}
+# variable "readonly_group_alias_name" {
+#   description = "Name for the readonly identity group alias"
+#   type        = string
+#   default     = "readonly-group"
+# }
 
-variable "readwrite_group_alias_name" {
-  description = "Name for the readwrite identity group alias"
-  type        = string
-  default     = "readwrite-group"
-}
+# variable "readwrite_group_alias_name" {
+#   description = "Name for the readwrite identity group alias"
+#   type        = string
+#   default     = "readwrite-group"
+# }
 
 # Azure AD provider variables
 variable "azure_tenant_id" {
@@ -235,4 +235,10 @@ variable "eks_kubeconfig_path" {
   description = "Path where kubeconfig file will be saved locally"
   type        = string
   default     = "./kubeconfig"
+}
+
+variable "ad_user_password" {
+  description = "Password for Azure AD users"
+  type        = string
+  sensitive   = true
 }

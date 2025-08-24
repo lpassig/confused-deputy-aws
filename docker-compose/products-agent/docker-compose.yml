@@ -1,8 +1,8 @@
 services:
   products-agent:
-    image: panchalravi/products-agent:latest
+    image: panchalravi/products-agent:${arch}
     container_name: products-agent
     ports:
       - "8001:8001"
     volumes:
-      - ./.env:/app/.env
+      - ./.env${target}:/app/.env

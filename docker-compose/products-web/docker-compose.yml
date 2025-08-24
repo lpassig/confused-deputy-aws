@@ -1,8 +1,8 @@
 services:
   products-web:
-    image: panchalravi/products-web:latest
+    image: panchalravi/products-web:${arch}
     container_name: products-web
     ports:
       - "8501:8501"
     volumes:
-      - ./.env:/app/.env
+      - ./.env${target}:/app/.env

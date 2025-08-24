@@ -244,6 +244,45 @@ def call_products_agent(prompt: str, access_token: str) -> Tuple[bool, str]:
         return False, f"Unexpected error: {str(e)}"
 
 
+def call_products_agent(prompt: str, access_token: str) -> Tuple[bool, str]:
+    """Call the ProductsAgent API with user prompt"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {"prompt": prompt}
+
+        response = requests.post(
+            f"{PRODUCTS_API_BASE_URL}/agent/invoke",
+            headers=headers,
+            json=payload,
+            timeout=30,
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return True, data.get("response", "No response from agent")
+        else:
+            error_data = response.json() if response.content else {}
+            error_msg = error_data.get("detail", f"HTTP {response.status_code}")
+            return False, f"API Error: {error_msg}"
+
+    except requests.exceptions.Timeout:
+        return (
+            False,
+            "Request timed out. The agent might be processing a complex request.",
+        )
+    except requests.exceptions.ConnectionError:
+        return (
+            False,
+            f"Cannot connect to ProductsAgent API at {PRODUCTS_API_BASE_URL}. Please ensure the API is running.",
+        )
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}"
+
+
 def check_api_health() -> bool:
     """Check if the ProductsAgent API is available"""
     try:
@@ -479,6 +518,17 @@ def render_chat_interface():
             st.session_state.chat_messages.append(error_message)
         else:
             access_token = st.session_state["token"].get("access_token")
+            # Check if access_token is valid and not expired
+            _, status_msg, payload = get_token_info({"access_token": access_token})
+            if "expired" in status_msg.lower():
+                error_message = {
+                    "type": "system",
+                    "content": f"Access token expired. Please refresh your authentication. ({status_msg})",
+                    "timestamp": timestamp,
+                    "error": True,
+                }
+                st.session_state.chat_messages.append(error_message)
+                st.rerun()
             if not access_token:
                 error_message = {
                     "type": "system",

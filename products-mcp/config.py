@@ -57,7 +57,7 @@ class Config(BaseSettings):
     jwt_issuer: str = Field(default=None, description="JWT issuer")
     jwt_audience: str = Field(default=None, description="JWT audience")
     jwks_uri: str = Field(default=None, description="JWT signing keys")
-    entra_tenant_id: str = Field(default=None, description="Entra tenant ID")
+    # entra_tenant_id: str = Field(default=None, description="Entra tenant ID")
 
     # Vault settings
     vault_addr: str = Field(default=None, description="Vault address")

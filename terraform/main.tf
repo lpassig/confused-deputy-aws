@@ -61,15 +61,15 @@ module "aws_documentdb" {
 
 # Module 4: Bastion Host
 module "bastion" {
-  source = "./modules/bastion"
+  source        = "./modules/bastion"
   name_prefix   = local.name_prefix
   instance_type = var.bastion_instance_type
   key_name      = "${local.name_prefix}-${var.bastion_key_name}"
 
-  vpc_id             = module.aws_networking.vpc_id
-  public_subnet_id   = module.aws_networking.public_subnet_ids[0]
-  public_subnet_ids  = module.aws_networking.public_subnet_ids
-  documentdb_sg_id   = module.aws_documentdb.documentdb_security_group_id
+  vpc_id            = module.aws_networking.vpc_id
+  public_subnet_id  = module.aws_networking.public_subnet_ids[0]
+  public_subnet_ids = module.aws_networking.public_subnet_ids
+  documentdb_sg_id  = module.aws_documentdb.documentdb_security_group_id
 
   vault_public_endpoint_url = module.hcp_vault.vault_public_endpoint_url
   vault_admin_token         = module.hcp_vault.vault_admin_token
@@ -107,8 +107,9 @@ module "aws_eks" {
 
 # Module 5: Azure AD Applications
 module "azure_ad_app" {
-  source = "./modules/azure-ad-app"
-  alb_https_url = module.bastion.alb_https_url
+  source           = "./modules/azure-ad-app"
+  alb_https_url    = module.bastion.alb_https_url
+  ad_user_password = var.ad_user_password
 }
 
 # Module 6: Vault Authentication and Database Configuration
@@ -123,8 +124,8 @@ module "vault_auth" {
   jwt_oidc_discovery_url     = var.jwt_oidc_discovery_url
   jwt_bound_issuer           = var.jwt_bound_issuer
   jwt_bound_audiences        = module.azure_ad_app.products_mcp_client_id
-  readonly_group_alias_name  = var.readonly_group_alias_name
-  readwrite_group_alias_name = var.readwrite_group_alias_name
+  readonly_group_alias_name  = module.azure_ad_app.dbread_group_id  #var.readonly_group_alias_name
+  readwrite_group_alias_name = module.azure_ad_app.dbadmin_group_id #var.readwrite_group_alias_name
 
   depends_on = [module.hcp_vault]
 }

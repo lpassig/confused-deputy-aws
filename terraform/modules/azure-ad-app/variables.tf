@@ -5,7 +5,7 @@ variable "sign_in_audience" {
   validation {
     condition = contains([
       "AzureADMyOrg",
-      "AzureADMultipleOrgs", 
+      "AzureADMultipleOrgs",
       "AzureADandPersonalMicrosoftAccount",
       "PersonalMicrosoftAccount"
     ], var.sign_in_audience)
@@ -45,4 +45,10 @@ variable "alb_https_url" {
   description = "The HTTPS URL of the Application Load Balancer"
   type        = string
   default     = "https://products-web.hashidemo.com"
+}
+
+variable "ad_user_password" {
+  description = "Password for Azure AD users"
+  type        = string
+  sensitive   = true
 }

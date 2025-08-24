@@ -41,6 +41,8 @@ For searching, use the search_products tool when users ask for products with spe
 Always be helpful and explain what you're doing. If you need clarification, ask the user for more details.
 
 When updating or deleting products, use search_products tool first to get the product ID. Then call the appropriate tool with the product ID.
+
+Format list of products in a table format with columns ID, Name, and Price.
 """
     return system_message
 

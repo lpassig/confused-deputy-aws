@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional
 from fastapi import FastAPI, Depends, Header, HTTPException, status
 from fastapi.security import HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -175,6 +176,62 @@ async def invoke_agent(
         )
 
 
+@app.post(
+    "/agent/stream",
+    response_model=AgentResponse,
+    responses={
+        401: {"model": ErrorResponse, "description": "Authentication failed"},
+        403: {"model": ErrorResponse, "description": "Token exchange failed"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def invoke_agent_stream(
+    request: AgentRequest, current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Invoke the ProductsAgent with user prompt.
+
+    This endpoint:
+    1. Validates the JWT token in the Authorization header
+    2. Exchanges the user token for an on-behalf-of token using Microsoft Entra ID
+    3. Invokes the ProductsAgent with the on-behalf-of token
+    4. Returns the agent's response
+    """
+    try:
+        logger.info(
+            f"Processing agent request for user: {current_user.get('preferred_username', 'unknown')}"
+        )
+
+        # Get the original user token
+        user_token = current_user["_original_token"]
+
+        # Exchange user token for on-behalf-of token
+        logger.info("Exchanging user token for on-behalf-of token")
+        entra_service = get_entra_token_service()
+        obo_token = await entra_service.exchange_token_on_behalf_of(user_token)
+
+        # Invoke the ProductsAgent with the on-behalf-of token
+        logger.info("Invoking ProductsAgent stream")
+        # agent_response = await products_agent.invoke(
+        #     request.prompt, jwt_token=obo_token
+        # )
+        return StreamingResponse(
+            products_agent.invoke_stream(request.prompt, jwt_token=obo_token),
+            media_type="text/event-stream",
+        )
+        # return AgentResponse(response=agent_response, success=True)
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (from token exchange, etc.)
+        raise
+    except Exception as e:
+        logger.error(f"Error processing agent request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process agent request: {str(e)}",
+        )
+
+
 @app.get("/user/info")
 async def get_user_info(current_user: Dict[str, Any] = Depends(get_current_user)):
     """
@@ -188,7 +245,7 @@ async def get_user_info(current_user: Dict[str, Any] = Depends(get_current_user)
         "user_id": user_info.get("sub"),
         "name": user_info.get("name"),
         "email": user_info.get("preferred_username"),
-        "tenant_id": user_info.get("tid"),
+        # "tenant_id": user_info.get("tid"),
         "groups": user_info.get("groups", []),
         "scopes": user_info.get("scp", "").split() if user_info.get("scp") else [],
     }

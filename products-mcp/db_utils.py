@@ -62,6 +62,19 @@ class DatabaseManager:
                 # Check if connection has expired
                 if time.time() - creation_time < duration:
                     logger.info(f"Using cached connection for {sub}")
+
+                    # Check if the client is still connected
+                    try:
+                        # The 'ping' command is a lightweight way to check connection health
+                        client.admin.command("ping")
+                        logger.info(f"Cached connection for {sub} is active")
+                    except Exception:
+                        logger.info(
+                            f"Cached connection for {sub} is no longer active, reconnecting..."
+                        )
+                        self.close_connection(sub)
+                    else:
+                        return client
                     return client
                 else:
                     # Connection expired, clean up
