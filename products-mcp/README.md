@@ -17,7 +17,6 @@ A FastMCP server for managing product operations with AWS DocumentDB. This serve
 
 - Python 3.12.8 or higher
 - Access to AWS DocumentDB cluster
-- SSL certificate for DocumentDB connection (recommended)
 - uv package manager
 
 ## Installation
