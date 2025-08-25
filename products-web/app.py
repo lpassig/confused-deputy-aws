@@ -132,7 +132,7 @@ TENANT_ID = os.environ.get("TENANT_ID")
 SCOPE = os.environ.get("SCOPE", "openid profile email User.Read")
 REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost:8501/oauth2callback")
 BASE_URL = os.environ.get("BASE_URL", "https://login.microsoftonline.com")
-PRODUCTS_API_BASE_URL = os.environ.get("PRODUCTS_API_BASE_URL", "http://localhost:8000")
+PRODUCTS_AGENT_URL = os.environ.get("PRODUCTS_AGENT_URL", "http://localhost:8000")
 
 # Construct OAuth URLs dynamically from base URL and tenant ID
 if TENANT_ID and BASE_URL:
@@ -216,7 +216,7 @@ def call_products_agent(prompt: str, access_token: str) -> Tuple[bool, str]:
         payload = {"prompt": prompt}
 
         response = requests.post(
-            f"{PRODUCTS_API_BASE_URL}/agent/invoke",
+            f"{PRODUCTS_AGENT_URL}/agent/invoke",
             headers=headers,
             json=payload,
             timeout=30,
@@ -238,46 +238,7 @@ def call_products_agent(prompt: str, access_token: str) -> Tuple[bool, str]:
     except requests.exceptions.ConnectionError:
         return (
             False,
-            f"Cannot connect to ProductsAgent API at {PRODUCTS_API_BASE_URL}. Please ensure the API is running.",
-        )
-    except Exception as e:
-        return False, f"Unexpected error: {str(e)}"
-
-
-def call_products_agent(prompt: str, access_token: str) -> Tuple[bool, str]:
-    """Call the ProductsAgent API with user prompt"""
-    try:
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-        }
-
-        payload = {"prompt": prompt}
-
-        response = requests.post(
-            f"{PRODUCTS_API_BASE_URL}/agent/invoke",
-            headers=headers,
-            json=payload,
-            timeout=30,
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            return True, data.get("response", "No response from agent")
-        else:
-            error_data = response.json() if response.content else {}
-            error_msg = error_data.get("detail", f"HTTP {response.status_code}")
-            return False, f"API Error: {error_msg}"
-
-    except requests.exceptions.Timeout:
-        return (
-            False,
-            "Request timed out. The agent might be processing a complex request.",
-        )
-    except requests.exceptions.ConnectionError:
-        return (
-            False,
-            f"Cannot connect to ProductsAgent API at {PRODUCTS_API_BASE_URL}. Please ensure the API is running.",
+            f"Cannot connect to ProductsAgent API at {PRODUCTS_AGENT_URL}. Please ensure the API is running.",
         )
     except Exception as e:
         return False, f"Unexpected error: {str(e)}"
@@ -286,7 +247,7 @@ def call_products_agent(prompt: str, access_token: str) -> Tuple[bool, str]:
 def check_api_health() -> bool:
     """Check if the ProductsAgent API is available"""
     try:
-        response = requests.get(f"{PRODUCTS_API_BASE_URL}/health", timeout=5)
+        response = requests.get(f"{PRODUCTS_AGENT_URL}/health", timeout=5)
         return response.status_code == 200
     except:
         return False
@@ -428,14 +389,14 @@ def render_chat_interface():
             st.session_state.api_status = check_api_health()
 
     if not st.session_state.api_status:
-        st.error(f"⚠️ Agent API is not available at {PRODUCTS_API_BASE_URL}")
+        st.error(f"⚠️ Agent API is not available at {PRODUCTS_AGENT_URL}")
         st.info("Please ensure the Agent API is running and accessible.")
         if st.button("🔄 Retry Connection"):
             st.session_state.api_status = None
             st.rerun()
         return
     else:
-        st.success(f"✅ ProductsAgent API is available at {PRODUCTS_API_BASE_URL}")
+        st.success(f"✅ ProductsAgent API is available at {PRODUCTS_AGENT_URL}")
 
     # Chat History using Streamlit's native chat interface
     st.markdown("### 💬 Chat History")
@@ -595,7 +556,7 @@ def main():
             st.write(f"**Tenant ID:** {TENANT_ID}")
             st.write(f"**Base URL:** {BASE_URL}")
             st.write(f"**Scopes:** {SCOPE}")
-            st.write(f"**Products API:** {PRODUCTS_API_BASE_URL}")
+            st.write(f"**Products API:** {PRODUCTS_AGENT_URL}")
 
         # Create OAuth2Component instance
         oauth2 = OAuth2Component(

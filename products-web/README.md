@@ -1,295 +1,191 @@
-# Microsoft Entra ID OAuth Streamlit Demo
+# Products Web - Streamlit Application
 
-A Streamlit application that demonstrates OAuth authentication with Microsoft Entra ID (formerly Azure AD). The application provides:
+A modern Streamlit web application that provides a secure interface for Microsoft Entra ID OAuth authentication integrated with an intelligent ProductsAgent chat system. This application serves as the frontend for interacting with AI-powered product management capabilities while demonstrating end-to-end authentication flows in a zero-trust architecture.
 
-- OAuth login flow with Microsoft Entra ID
-- JWT token display (both raw and decoded)
-- Token refresh functionality
-- Logout capability
-- User-friendly interface
-
-## Features
-
-- ✅ **OAuth Authentication**: Secure login with Microsoft Entra ID
-- 🔍 **JWT Token Analysis**: View raw and decoded JWT tokens
-- 🔄 **Token Refresh**: Automatically refresh expired tokens
-- 🚪 **Logout**: Clear session and logout functionality
-- 📊 **Token Status**: Real-time token validity checking
-- 🎨 **Modern UI**: Clean and intuitive Streamlit interface
 
 ## Prerequisites
 
-- Python 3.12.8 or higher
+- Python 3.12 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
-- Microsoft Entra ID tenant (free tier available)
-- App registration in Microsoft Entra ID
+- Docker and Docker Compose (for containerized deployment)
+- Microsoft Entra ID tenant with configured application registration
 
-## Setup Instructions
+## Local Development Setup
 
-### 1. Install uv (if not already installed)
+### 1. Install uv Package Manager
 
 ```bash
-# On macOS/Linux
+# Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# On Windows
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Or with pip
-pip install uv
+# Verify installation
+uv --version
 ```
 
-### 2. Clone and Setup Environment
+### 2. Setup Development Environment
 
 ```bash
-# Navigate to your project directory
-cd /Users/ravipanchal/learn/vault/confused-deputy-aws/web
+# Navigate to the products-web directory
+cd products-web
 
-# Create virtual environment with Python 3.12.8
-uv venv --python 3.12.8
+# Create virtual environment using uv
+uv venv
 
 # Activate the virtual environment
 source .venv/bin/activate  # On Unix/macOS
-# or
-.venv\Scripts\activate     # On Windows
+# or .venv\Scripts\activate on Windows
 
-# Install dependencies from pyproject.toml
-uv pip install streamlit streamlit-oauth "python-jose[cryptography]" python-dotenv requests cryptography
+# Install dependencies using uv
+uv pip install -r requirements.txt
 
-# Or install with development dependencies
-uv pip install streamlit streamlit-oauth "python-jose[cryptography]" python-dotenv requests cryptography pytest black ruff mypy pre-commit
+# Alternative: Install from pyproject.toml
+uv pip install -e .
 ```
 
-### 3. Microsoft Entra ID App Registration
+### 3. Environment Configuration
 
-Follow these steps to create an app registration in Microsoft Entra ID:
-
-#### Step 1: Create App Registration
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Navigate to **Azure Active Directory** (or **Microsoft Entra ID**)
-3. Go to **App registrations** → **New registration**
-4. Fill in the details:
-   - **Name**: `Streamlit OAuth Demo` (or your preferred name)
-   - **Supported account types**: Choose based on your needs:
-     - **Single tenant**: Only your organization
-     - **Multi-tenant**: Any organizational directory
-     - **Multi-tenant + personal**: Any organizational directory + personal Microsoft accounts
-   - **Redirect URI**: Select **Web** and enter: `http://localhost:8501/oauth2callback`
-5. Click **Register**
-
-#### Step 2: Configure App Registration
-1. After creation, note down the **Application (client) ID** and **Directory (tenant) ID**
-2. Go to **Certificates & secrets** → **New client secret**
-3. Add a description and choose expiration period
-4. Copy the **client secret value** immediately (it won't be shown again)
-
-#### Step 3: Configure API Permissions (Optional)
-1. Go to **API permissions**
-2. The following permissions are typically needed:
-   - **Microsoft Graph**: `User.Read` (usually added by default)
-   - **OpenID Connect**: `openid`, `profile`, `email`
-3. Grant admin consent if required by your organization
-
-### 4. Environment Configuration
-
-Create a `.env` file based on the `.env.example` template:
-
-```bash
-cp .env.example .env
-```
-
-Fill in your actual values in the `.env` file:
+Create a `.env` file with your Microsoft Entra ID configuration:
 
 ```env
-# Your Microsoft Entra ID configuration
+# Microsoft Entra ID OAuth Configuration
 CLIENT_ID=your_application_client_id_here
 CLIENT_SECRET=your_client_secret_here
 TENANT_ID=your_directory_tenant_id_here
 
-# OAuth Scopes (space-separated)
-SCOPE=openid profile email User.Read
-
-# Redirect URI (must match what's in Azure App Registration)
+# OAuth Settings
+SCOPE=openid profile email  api://<ad_domain>.onmicrosoft.com/products-agent/Agent.Invoke
 REDIRECT_URI=http://localhost:8501/oauth2callback
-
-# Base URL for Microsoft Entra ID (OAuth URLs will be constructed automatically)
 BASE_URL=https://login.microsoftonline.com
+
+# ProductsAgent API Configuration
+PRODUCTS_AGENT_URL=http://localhost:8001
 ```
 
-**Note**: The OAuth URLs are now constructed automatically using the BASE_URL and TENANT_ID. Individual URL overrides are not supported - all URLs are dynamically generated.
-
-### 5. Run the Application
+### 4. Run the Application
 
 ```bash
-# Make sure your virtual environment is activated
-source .venv/bin/activate  # On Unix/macOS
+# Ensure virtual environment is activated
+source .venv/bin/activate
 
-# Run the Streamlit application
+# Start the Streamlit application
+uv run streamlit run app.py
+
+# Alternative: Direct execution
 streamlit run app.py
-
-# Alternative: Use the project script (if configured)
-# oauth-demo
 ```
 
-The application will start at `http://localhost:8501`
+The application will be available at `http://localhost:8501`
 
-## Application Structure
+## Docker Deployment
 
-```
-/web
-├── app.py                 # Main Streamlit application
-├── pyproject.toml         # Project configuration and dependencies
-├── .env.example          # Environment variables template
-├── .env                  # Your actual environment variables (create this)
-├── .venv/                # Virtual environment (created by uv)
-├── .gitignore            # Git ignore rules
-└── README.md             # This file
-```
+### Build and Run with Docker
 
-## Key Features Explained
+This project includes a multi-stage Dockerfile optimized for both development and production use. Use the provided `docker-build.sh` script for streamlined container management.
 
-### OAuth Flow
-1. User clicks "Login with Microsoft"
-2. Redirected to Microsoft Entra ID login page
-3. After successful authentication, user is redirected back with authorization code
-4. Application exchanges code for access and ID tokens
-5. Tokens are stored in Streamlit session state
+#### Production Builds
 
-### JWT Token Display
-- **Raw Token**: Shows the complete JWT token string
-- **Decoded Token**: Displays header and payload in JSON format
-- **Key Information**: Highlights important claims like user info, expiration, etc.
-- **Token Status**: Shows if token is valid or expired
+**Build for current architecture:**
+```bash
+# Build production image for your current platform
+./docker-build.sh
 
-### Token Management
-- **Automatic Refresh**: Tokens can be refreshed when expired
-- **Session Persistence**: Tokens persist during the browser session
-- **Secure Logout**: Clears all session data
-
-## Security Considerations
-
-⚠️ **Important Security Notes:**
-
-1. **Client Secret**: Never commit your `.env` file to version control
-2. **HTTPS in Production**: Always use HTTPS in production environments
-3. **Token Validation**: This demo shows tokens without signature verification - implement proper validation in production
-4. **Scope Limitation**: Only request the minimum scopes needed for your application
-5. **Token Storage**: Consider more secure token storage for production applications
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"Missing required environment variables"**
-   - Ensure your `.env` file exists and contains all required variables
-   - Check that variable names match exactly
-
-2. **OAuth callback error**
-   - Verify the redirect URI in your `.env` matches the one in Azure App Registration
-   - Ensure the application is running on the correct port (8501)
-
-3. **Token decoding errors**
-   - This usually means the JWT token format is invalid
-   - Check if you're using the correct token type (access_token vs id_token)
-
-4. **Permission denied errors**
-   - Check that your app registration has the required API permissions
-   - Ensure admin consent is granted if required by your organization
-
-### Debug Mode
-
-To enable debug information, you can add this to your `.env`:
-
-```env
-STREAMLIT_LOGGER_LEVEL=debug
+# Build for specific architecture
+./docker-build.sh amd64   # For Intel/AMD processors  
+./docker-build.sh arm64   # For Apple Silicon (M1/M2)
 ```
 
-## Development Workflow
+**Multi-architecture build:**
+```bash
+# Build for both AMD64 and ARM64 using Docker buildx
+./docker-build.sh multi
+```
 
-### Code Quality Tools
-
-This project includes several code quality tools configured in `pyproject.toml`:
+#### Running Containers
 
 ```bash
-# Format code with Black
-uv run black app.py
+# Run with default settings (requires .env file)
+./docker-build.sh run
 
-# Lint with Ruff
-uv run ruff check app.py
-
-# Type checking with MyPy
-uv run mypy app.py
-
-# Run tests
-uv run pytest
+# Run specific architecture build
+./docker-build.sh run amd64
+./docker-build.sh run arm64
 ```
 
-### Pre-commit Hooks
+#### Manual Docker Commands
+
+If you prefer manual Docker commands over the build script:
 
 ```bash
-# Install pre-commit hooks (optional)
-uv run pre-commit install
+# Build production image
+docker build --target production -t products-web:latest .
 
-# Run hooks manually
-uv run pre-commit run --all-files
+# Build development image  
+docker build --target development -t products-web:dev .
+
+# Run production container
+docker run -p 8501:8501 --env-file .env products-web:latest
+
+# Run development container with volume mounting
+docker run -p 8501:8501 --env-file .env -v $(pwd):/app products-web:dev
 ```
 
-## Customization
-
-You can customize the application by:
-
-1. **Modifying Scopes**: Update the `SCOPE` variable in `.env`
-2. **Changing UI**: Modify the Streamlit components in `app.py`
-3. **Adding Features**: Extend the token analysis or add API calls using the access token
-4. **Styling**: Use Streamlit's theming capabilities or custom CSS
-5. **Dependencies**: Add new dependencies with `uv add <package-name>`
-
-## Dependencies
-
-This project uses modern Python packaging with `pyproject.toml` and `uv` for fast dependency management.
-
-### Core Dependencies
-- `streamlit>=1.32.0`: Web framework for the UI
-- `streamlit-oauth>=0.1.7`: OAuth2 component for Streamlit
-- `python-jose[cryptography]>=3.3.0`: JWT token handling
-- `python-dotenv>=1.0.0`: Environment variable loading
-- `requests>=2.31.0`: HTTP requests
-- `cryptography>=41.0.0`: Cryptographic operations
-
-### Development Dependencies (optional)
-- `pytest>=7.0.0`: Testing framework
-- `black>=23.0.0`: Code formatting
-- `ruff>=0.1.0`: Fast Python linter
-- `mypy>=1.0.0`: Static type checking
-- `pre-commit>=3.0.0`: Git hooks
-
-### Managing Dependencies
+#### Registry Deployment
 
 ```bash
-# Install production dependencies
-uv pip install streamlit streamlit-oauth "python-jose[cryptography]" python-dotenv requests cryptography
+# Build and push to container registry
+./docker-build.sh push your-registry.com/products-web
 
-# Add a new dependency
-uv pip install <package-name>
-
-# List installed packages
-uv pip list
-
-# Create/update a lockfile (if needed)
-uv pip freeze > requirements-lock.txt
+# This builds multi-architecture images and pushes to the specified registry
 ```
 
-## License
+## API Integration
 
-This is a demonstration application. Feel free to use and modify as needed.
+### ProductsAgent Chat
 
-## Support
+The application integrates with the ProductsAgent API to provide intelligent product management capabilities:
 
-For issues related to:
-- **Streamlit**: Check the [Streamlit documentation](https://docs.streamlit.io)
-- **Microsoft Entra ID**: Refer to [Microsoft Identity platform documentation](https://docs.microsoft.com/en-us/azure/active-directory/develop/)
-- **OAuth2**: See the [OAuth 2.0 specification](https://oauth.net/2/)
+**Supported Operations:**
+- List all products in the catalog
+- Search for products by name or attributes
+- Create new products with natural language
+- Update existing product information
+- Delete products by ID or name
+- Sort and filter products by various criteria
 
----
+**Example Queries:**
+- "Show me all products"
+- "Find laptops under $1000"
+- "Create a new MacBook Pro priced at $2499"
+- "Update product XYZ to cost $1999"
+- "Delete the product called 'Old Laptop'"
 
-**Note**: This is a demo application for learning purposes. For production use, implement additional security measures and follow your organization's security policies.
+### Authentication Flow
+
+1. **Login**: User clicks "Login with Microsoft" button
+2. **OAuth Redirect**: User is redirected to Microsoft Entra ID for authentication
+3. **Token Exchange**: Application receives authorization code and exchanges for tokens
+4. **Token Storage**: JWT tokens are securely stored in Streamlit session state
+5. **API Calls**: Authenticated requests are made to ProductsAgent API with Bearer token
+6. **Chat Interface**: User can interact with AI agent through natural language queries
+
+## Usage Examples
+
+### Basic Chat Interaction
+
+```python
+# Example of how the chat interface processes queries
+user_input = "List all products sorted by price"
+response = chat_with_agent(user_input, jwt_token)
+# Returns structured response from ProductsAgent API
+```
+
+
+## Integration with Other Components
+
+This application integrates with the broader confused-deputy-aws architecture:
+
+- **products-agent**: FastAPI backend providing AI agent capabilities
+- **products-mcp**: Model Context Protocol server for database operations  
+- **Infrastructure**: AWS services, HCP Vault, and Microsoft Entra ID
+
+The web application serves as the user-facing interface that orchestrates secure communication between these components while providing an intuitive chat experience for product management tasks.

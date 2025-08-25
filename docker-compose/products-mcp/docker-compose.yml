@@ -1,6 +1,7 @@
 services:
   products-mcp:
-    image: panchalravi/products-mcp:${arch}
+    image: panchalravi/products-mcp:${tag}
+    platform: ${platform}
     container_name: products-mcp
     ports:
       - "8000:8000"

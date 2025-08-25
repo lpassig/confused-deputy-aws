@@ -1,9 +1,7 @@
 from strands.models import BedrockModel
 
 # from strands.models.openai import OpenAIModel
-from dotenv import load_dotenv
-
-load_dotenv()
+import os
 
 
 # def get_openai_model():
@@ -18,9 +16,8 @@ load_dotenv()
 
 def get_bedrock_model():
     bedrock_model = BedrockModel(
-        # model_id="amazon.nova-lite-v1:0",
-        model_id="amazon.nova-pro-v1:0",
-        temperature=0.1,
-        region_name="us-east-1",
+        model_id=os.getenv("BEDROCK_MODEL_ID", "apac.amazon.nova-pro-v1:0"),
+        temperature=float(os.getenv("BEDROCK_TEMPERATURE", 0.1)),
+        region_name=os.getenv("BEDROCK_REGION", "ap-southeast-1"),
     )
     return bedrock_model

@@ -65,7 +65,7 @@ TENANT_ID=your_tenant_id_here
 SCOPE=openid profile email User.Read
 REDIRECT_URI=http://localhost:8501/oauth2callback
 BASE_URL=https://login.microsoftonline.com
-PRODUCTS_API_BASE_URL=http://localhost:8000
+PRODUCTS_AGENT_URL=http://localhost:8000
 ```
 
 ## 🤖 New Features

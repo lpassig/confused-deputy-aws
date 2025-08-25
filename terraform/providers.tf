@@ -32,7 +32,7 @@ provider "azuread" {
 # Azure Resource Manager provider (if needed for Azure resources)
 provider "azurerm" {
   features {}
-  tenant_id       = var.azure_tenant_id
-  client_id       = var.azure_client_id
-  client_secret   = var.azure_client_secret
+  tenant_id     = var.azure_tenant_id
+  client_id     = var.azure_client_id
+  client_secret = var.azure_client_secret
 }

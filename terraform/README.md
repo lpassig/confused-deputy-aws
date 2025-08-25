@@ -1,116 +1,281 @@
-# HCP Vault + AWS DocumentDB Infrastructure
+# Secure Agentic Infrastructure with Terraform
 
-This Terraform project creates a complete infrastructure setup with HashiCorp Cloud Platform (HCP) Vault and AWS DocumentDB, connected via VPC peering and accessible through a bastion host.
+This Terraform configuration deploys a comprehensive secure infrastructure for running agentic AI applications with end-to-end authentication, authorization, and zero-trust architecture principles. The infrastructure integrates HashiCorp Cloud Platform (HCP) Vault, AWS services, Microsoft Entra ID, and AWS Bedrock to create a production-ready environment for secure AI workloads.
 
 ## Architecture Overview
 
-The infrastructure consists of four main components:
+The infrastructure consists of six main components that work together to provide a secure, scalable platform:
 
-1. **HCP Infrastructure**: HashiCorp Virtual Network (HVN) and Vault Plus cluster
-2. **AWS Networking**: VPC with public/private subnets and VPC peering with HCP HVN
-3. **DocumentDB**: AWS DocumentDB cluster with security groups for network access
-4. **Bastion Host**: Ubuntu EC2 instance with MongoDB tools for database access
-
-### Resource Naming Convention
-
-All resources are automatically prefixed with a customizable prefix plus a random 3-character suffix to ensure uniqueness:
-- **Format**: `{resource_prefix}-{3-char-random-suffix}`
-- **Default prefix**: `hcp-vault-docdb`
-- **Example**: `hcp-vault-docdb-abc` (where `abc` is randomly generated)
-- **Benefits**: Prevents naming conflicts, easy resource identification, supports multiple deployments
+1. **HCP Vault Cluster**: Centralized secrets management and identity-based authentication
+2. **AWS Networking**: VPC with public/private subnets and secure connectivity to HCP
+3. **AWS DocumentDB**: MongoDB-compatible database for application data storage
+4. **Bastion Host**: Secure access point with application deployment and management tools
+5. **Microsoft Entra ID Applications**: OAuth/JWT authentication and authorization
+6. **Vault Authentication**: JWT-based authentication bridge between Entra ID and Vault
 
 ## Prerequisites
 
-- **Terraform** >= 1.5
-- **AWS CLI** configured with appropriate credentials
-- **HCP CLI** configured with appropriate credentials (or HCP service principal)
-- An **HCP account** with billing enabled
+Before deploying this infrastructure, ensure you have the following prerequisites configured:
 
-## Quick Start
+### 1. HashiCorp Cloud Platform (HCP)
 
-1. **Clone and Navigate**
-   ```bash
-   cd terraform
-   ```
+- **HCP Account**: Active account with billing enabled
+- **Service Principal**: Create an HCP service principal with the following permissions:
+  - `Contributor` role on the HCP project
+  - Ability to create and manage HVN and Vault clusters
+- **Client Credentials**: Note the Client ID and Client Secret for the service principal
 
-2. **Configure Variables**
-   ```bash
-   cp terraform.tfvars.example terraform.tfvars
-   ```
-   
-   Edit `terraform.tfvars` and set:
-   - `docdb_master_password` to a secure password
-   - Adjust other values as needed (regions, CIDR blocks, etc.)
+```bash
+# Set HCP credentials (required for deployment)
+export HCP_CLIENT_ID="your-hcp-client-id"
+export HCP_CLIENT_SECRET="your-hcp-client-secret"
+```
 
-3. **Initialize Terraform**
-   ```bash
-   terraform init
-   ```
+### 2. AWS Configuration
 
-4. **Plan Deployment**
-   ```bash
-   terraform plan
-   ```
+- **AWS Account**: Active AWS account with appropriate permissions
+- **IAM Permissions**: Ensure your AWS credentials have permissions for:
+  - VPC management (create/modify/delete VPCs, subnets, route tables, gateways)
+  - EC2 management (instances, security groups, key pairs)
+  - DocumentDB cluster management
+  - Application Load Balancer management
+  - Certificate Manager (for SSL certificates)
+- **AWS CLI**: Configured with appropriate credentials
 
-5. **Deploy Infrastructure**
-   ```bash
-   terraform apply
-   ```
+```bash
+# Configure AWS CLI (required for deployment)
+aws configure
+```
 
-6. **Initialize DocumentDB**
-   ```bash
-   ./init-documentdb.sh
-   ```
+### 3. Microsoft Entra ID (Azure AD) Configuration
+
+- **Azure AD Tenant**: Access to an Azure AD tenant with administrative privileges
+- **Service Principal**: Create a service principal with the following permissions:
+  - **Microsoft Graph API Permissions**:
+    - `Application.ReadWrite.All` (to create and manage app registrations)
+    - `ConsentRequest.ReadWrite.All` (to approve or deny app consent requests and approvals without a signed-in user)
+    - `Domain.Read.All` (to read domain information)
+    - `Group.ReadWrite.All` (to read and write group information)
+    - `User.ReadWrite.All` (and write to reada and write user information)
+    - `Directory.Read.All` (for directory access)
+  - **Azure Active Directory Graph API Permissions**:
+    - `Directory.ReadWrite.All` (legacy permissions for certain operations)
+- **Custom Domain**: Configured custom domain in your Azure AD tenant (required for certain operations)
+- **Admin Consent**: Grant admin consent for the service principal permissions
+
+```bash
+# Set Azure credentials (required for deployment)
+export AZURE_TENANT_ID="your-azure-tenant-id"
+export AZURE_CLIENT_ID="your-azure-service-principal-client-id"
+export AZURE_CLIENT_SECRET="your-azure-service-principal-client-secret"
+```
+
+### 4. AWS Bedrock Configuration
+
+- **Model Access**: Enable access to the **Nova Pro model** in the **us-east-1** region
+  
+**Important**: This application has been specifically tested with the **Nova Pro model** in the **us-east-1** region. Enable model access through the AWS Console:
+
+1. Navigate to AWS Bedrock console in **us-east-1** region
+2. Go to "Model Access" in the left sidebar
+3. Request access to the **Nova Pro** model
+4. Wait for approval (this may take some time)
+
+### 5. Required Tools
+
+- **Terraform**: Version >= 1.5
+- **AWS CLI**: Latest version, properly configured
+- **HCP CLI**: For HCP management (optional but recommended)
+
+## Infrastructure Setup
+
+### 1. Clone and Navigate
+
+```bash
+git clone <repository-url>
+cd terraform
+```
+
+### 2. Configure Variables
+
+```bash
+# Copy the example variables file
+cp terraform.tfvars.example terraform.tfvars
+
+# Edit the variables file with your specific values
+nano terraform.tfvars
+```
+
+**Required Variables to Configure:**
+
+```hcl
+# General Configuration
+resource_prefix = "your-project-name"  # Will be combined with random suffix
+aws_region      = "us-east-1"          # Must be us-east-1 for Nova Pro model
+
+# HCP Configuration  
+hcp_client_id     = "your-hcp-client-id"
+hcp_client_secret = "your-hcp-client-secret"
+
+# Azure AD Configuration
+azure_tenant_id     = "your-azure-tenant-id"
+azure_client_id     = "your-azure-service-principal-client-id"
+azure_client_secret = "your-azure-service-principal-client-secret"
+
+# DocumentDB Configuration
+docdb_master_username = "YourDBUsername"
+docdb_master_password = "YourSecurePassword123!"
+
+# JWT Authentication Configuration
+jwt_oidc_discovery_url = "https://login.microsoftonline.com/{your-tenant-id}/v2.0/.well-known/openid_configuration"
+jwt_bound_issuer       = "https://login.microsoftonline.com/{your-tenant-id}/v2.0"
+
+# Azure AD User Configuration
+ad_user_password = "SecureUserPassword123!"
+```
+
+### 3. Initialize Terraform
+
+```bash
+# Initialize Terraform with all required providers
+terraform init
+```
+
+This will download and configure the following providers:
+- `hashicorp/hcp` - For HCP Vault and HVN management
+- `hashicorp/aws` - For AWS resource management
+- `hashicorp/azuread` - For Azure AD application management
+- `hashicorp/azurerm` - For Azure resource management
+- `hashicorp/vault` - For Vault configuration
+- `hashicorp/tls` - For TLS certificate generation
+- `hashicorp/random` - For random resource naming
+- `hashicorp/local` - For local file operations
+
+### 4. Plan Deployment
+
+```bash
+# Review the planned infrastructure changes
+terraform plan
+```
+
+This command will show you:
+- All resources that will be created
+- Dependencies between resources  
+- Any potential issues with your configuration
+
+### 5. Deploy Infrastructure
+
+```bash
+# Apply the Terraform configuration
+terraform apply
+```
+
+**Deployment Process:**
+1. **Resource Creation Order**: Terraform will create resources in the correct dependency order
+2. **Duration**: Full deployment typically takes 15-20 minutes
+3. **Monitoring**: Watch the output for any errors or warnings
+4. **Confirmation**: Type `yes` when prompted to proceed with deployment
+
+**What Gets Created:**
+
+- **HCP Resources**:
+  - HashiCorp Virtual Network (HVN) with CIDR `172.25.16.0/20`
+  - Vault Plus cluster with public endpoint access
+  - Admin token for initial Vault access
+
+- **AWS Resources**:
+  - VPC with CIDR `10.0.0.0/16` (configurable)
+  - Public and private subnets across multiple AZs
+  - Internet Gateway and NAT Gateways
+  - VPC peering connection to HCP HVN
+  - DocumentDB cluster with security groups
+  - EC2 bastion host with application services
+  - Application Load Balancer with SSL certificate
+  - Security groups and routing tables
+
+- **Azure AD Resources**:
+  - Application registrations for web and API components
+  - Service principals with required permissions
+  - User groups for role-based access control
+  - Test users with appropriate group memberships
+
+- **Vault Configuration**:
+  - JWT authentication method configured
+  - Database secrets engine for DocumentDB
+  - Policies for different access levels
+  - Identity groups mapped to Azure AD groups
+
+## Infrastructure Teardown
+
+### Destroy Infrastructure
+
+When you need to tear down the infrastructure:
+
+```bash
+# Destroy all Terraform-managed resources
+terraform destroy
+```
+
+### Selective Resource Management
+
+```bash
+# Destroy specific resources
+terraform destroy -target=module.bastion
+
+# Recreate specific resources  
+terraform apply -target=module.aws_documentdb
+
+# Plan changes for specific resources
+terraform plan -target=module.vault_auth
+```
+
+## Post-Deployment Configuration
+
+After successful deployment, Terraform will output important connection details and URLs. Use these outputs to access and configure your deployed services.
+
+### Access Information
+
+```bash
+# Get all Terraform outputs
+terraform output
+
+# Get specific outputs
+terraform output vault_public_endpoint_url
+terraform output bastion_public_ip
+terraform output documentdb_cluster_endpoint
+terraform output alb_https_url
+```
+
+### Application Deployment
+
+The bastion host comes pre-configured with:
+- Docker and Docker Compose for container deployment
+- MongoDB tools for database management
+
+### Next Steps
+
+1. **Access Vault**: Use the admin token to review configured policies, AWS DocumentDB secrets engine, JWT authentication method and identity groups
+2. **Database Setup**: Connect to DocumentDB and review the collection (produts) and sample documents
+3. **Application Deployment**: Deploy your agentic applications to the bastion host using ../docker-compose
+
 
 ## Module Structure
 
 ```
-├── main.tf                    # Root module configuration
-├── variables.tf              # Root module variables
-├── outputs.tf               # Root module outputs
-├── terraform.tf             # Provider configurations
-├── terraform.tfvars.example # Example variables file
-├── init-documentdb.sh       # DocumentDB initialization script
+terraform/
+├── main.tf                    # Main infrastructure orchestration
+├── variables.tf              # Input variable definitions  
+├── outputs.tf               # Output value definitions
+├── providers.tf             # Provider configurations
+├── terraform.tfvars.example # Example configuration file
 └── modules/
-    ├── hcp-infrastructure/   # HCP HVN and Vault cluster
-    ├── aws-networking/       # VPC, subnets, and peering
-    ├── documentdb/          # DocumentDB cluster and security
-    └── bastion/             # Bastion host with SSH access
+    ├── hcp-vault/           # HCP HVN and Vault cluster
+    ├── aws-networking/      # VPC, subnets, and connectivity
+    ├── aws-documentdb/      # DocumentDB cluster and security
+    ├── bastion/            # EC2 bastion with application services
+    ├── azure-ad-app/       # Azure AD applications and users
+    └── vault-auth/         # Vault authentication configuration
 ```
-
-### Module 1: HCP Infrastructure
-
-Creates:
-- **HCP HVN** with non-overlapping CIDR (default: `172.25.16.0/20`)
-- **HCP Vault Plus cluster** with public endpoint enabled
-- **Admin token** for Vault cluster access
-
-### Module 2: AWS Networking
-
-Creates:
-- **VPC** with DNS support enabled (default: `10.0.0.0/16`)
-- **Public subnets** with Internet Gateway access
-- **Private subnets** with NAT Gateway access
-- **VPC Peering** connection between AWS VPC and HCP HVN
-- **Routing tables** with proper routes for HVN access
-
-### Module 3: DocumentDB
-
-Creates:
-- **DocumentDB cluster** with encryption enabled
-- **DocumentDB instances** (default: 1x db.t3.medium)
-- **Security group** allowing access from VPC and HVN CIDR blocks
-- **Parameter group** with TLS disabled for easier connection
-- **Subnet group** spanning private subnets
-
-### Module 4: Bastion Host
-
-Creates:
-- **SSH key pair** with private key saved locally
-- **Ubuntu 22.04 EC2 instance** (default: t3.medium)
-- **Security group** allowing SSH from internet
-- **DocumentDB access rule** added to DocumentDB security group
-- **Pre-installed MongoDB tools** for database connectivity
 
 ## Network Configuration
 
@@ -121,161 +286,10 @@ Creates:
 - **Private Subnets**: `10.0.10.0/24`, `10.0.20.0/24`
 
 ### Security Groups
-- **DocumentDB**: Allows port 27017 from VPC and HVN CIDR blocks
-- **Bastion**: Allows SSH (port 22) from internet, full egress
+- **DocumentDB**: Allows MongoDB port 27017 from VPC and HVN CIDR blocks
+- **Bastion**: Allows SSH (22) and HTTPS (443) with controlled access
+- **Application Load Balancer**: Allows HTTP (80) and HTTPS (443) from internet
 
-## Connecting to DocumentDB
+---
 
-### Via Bastion Host
-
-1. **SSH to Bastion**
-   ```bash
-   ssh -i $(terraform output -raw bastion_ssh_key_path) ubuntu@$(terraform output -raw bastion_public_ip)
-   ```
-
-2. **Connect to DocumentDB**
-   ```bash
-   ./connect-to-documentdb.sh <endpoint> <username> <password> test
-   ```
-
-3. **Query Products Collection**
-   ```javascript
-   db.products.find().pretty()
-   db.products.countDocuments()
-   db.products.find({"category": "Electronics"})
-   ```
-
-### Connection Details
-
-Get connection details from Terraform outputs:
-```bash
-terraform output documentdb_cluster_endpoint
-terraform output bastion_public_ip
-terraform output bastion_ssh_key_path
-```
-
-## DocumentDB Products Collection
-
-The initialization script creates a `products` collection in the `test` database with:
-
-- **5 sample products** with realistic data
-- **Unique index** on SKU field
-- **Index** on category field for filtering
-- **Fields**: name, description, price, category, sku, inStock, quantity, createdAt, updatedAt
-
-### Sample Products
-- Laptop ($1299.99, Electronics, In Stock)
-- Wireless Mouse ($29.99, Accessories, In Stock) 
-- Mechanical Keyboard ($149.99, Accessories, Out of Stock)
-- 4K Monitor ($399.99, Electronics, In Stock)
-- Webcam ($79.99, Accessories, In Stock)
-
-## HCP Vault Access
-
-### Connection Details
-```bash
-# Get Vault URL and admin token
-terraform output vault_public_endpoint_url
-terraform output vault_admin_token
-```
-
-### Vault CLI Setup
-```bash
-export VAULT_ADDR=$(terraform output -raw vault_public_endpoint_url)
-export VAULT_TOKEN=$(terraform output -raw vault_admin_token)
-vault status
-```
-
-## Important Notes
-
-### Security Considerations
-- **DocumentDB TLS is disabled** for easier connection from bastion
-- **Bastion SSH** is open to internet (0.0.0.0/0) - restrict in production
-- **Vault admin token** is sensitive - store securely
-- **Private key** is stored locally - backup securely
-
-### Cost Optimization
-- **HCP Vault Plus** tier has hourly costs
-- **DocumentDB db.t3.medium** instances have hourly costs
-- **NAT Gateways** have hourly costs and data transfer charges
-- Consider using **Vault starter_small** tier for development
-
-### Customization
-- Adjust **instance sizes** in `terraform.tfvars`
-- Modify **CIDR blocks** to avoid conflicts
-- Change **availability zones** for your region
-- Update **instance counts** for DocumentDB
-
-## Troubleshooting
-
-### Common Issues
-
-1. **HCP Provider Authentication**
-   ```bash
-   # Set HCP credentials
-   export HCP_CLIENT_ID="your-client-id"
-   export HCP_CLIENT_SECRET="your-client-secret"
-   ```
-
-2. **AWS Provider Authentication**
-   ```bash
-   # Configure AWS CLI
-   aws configure
-   ```
-
-3. **Bastion Connection Issues**
-   ```bash
-   # Check security groups allow SSH
-   # Verify key permissions: chmod 600 *.pem
-   ```
-
-4. **DocumentDB Connection Issues**
-   ```bash
-   # Verify bastion can reach DocumentDB
-   # Check security group rules
-   # Confirm endpoint is correct
-   ```
-
-### Resource Cleanup
-
-```bash
-terraform destroy
-```
-
-**Note**: HCP Vault cluster has `prevent_destroy = true` lifecycle rule. Remove this before destroying if needed.
-
-## Outputs Reference
-
-| Output | Description |
-|--------|-------------|
-| `resource_name_prefix` | Generated resource name prefix with random suffix |
-| `hvn_id` | HCP HVN identifier |
-| `vault_public_endpoint_url` | Vault cluster public URL |
-| `vault_admin_token` | Vault admin token (sensitive) |
-| `vpc_id` | AWS VPC identifier |
-| `documentdb_cluster_endpoint` | DocumentDB connection endpoint |
-| `bastion_public_ip` | Bastion host public IP |
-| `bastion_ssh_key_path` | Path to SSH private key |
-| `ssh_connection_command` | Ready-to-use SSH command |
-
-## Variables Reference
-
-### Required Variables
-- `docdb_master_password` - DocumentDB master password (sensitive)
-
-### Optional Variables
-- `resource_prefix` - Prefix for all resource names (default: hcp-vault-docdb)
-- `aws_region` - AWS region (default: us-east-1)
-- `hvn_cidr_block` - HCP HVN CIDR (default: 172.25.16.0/20)
-- `vpc_cidr` - AWS VPC CIDR (default: 10.0.0.0/16)
-- `vault_tier` - HCP Vault tier (default: plus)
-- `docdb_instance_class` - DocumentDB instance type (default: db.t3.medium)
-- `bastion_instance_type` - Bastion EC2 type (default: t3.medium)
-
-## Support
-
-For issues with this Terraform configuration:
-1. Check the troubleshooting section above
-2. Verify all prerequisites are met
-3. Ensure proper authentication for HCP and AWS
-4. Review Terraform logs with `TF_LOG=DEBUG terraform apply`
+**⚠️ Important**: This infrastructure creates billable resources in HCP, AWS, and Azure. Monitor costs and destroy resources when not needed for development/testing purposes.

@@ -84,12 +84,6 @@ class DatabaseManager:
             credentials = get_mongodb_credentials(jwt_token)
             config = get_config()
 
-            # Create new connection
-            # connection_string = (
-            #     f"mongodb://{credentials['username']}:{credentials['password']}"
-            #     f"@{config['MONGODB_HOST']}:{config['MONGODB_PORT']}"
-            #     f"/{config['MONGODB_DATABASE']}?retryWrites=false"
-            # )
             connection_string = (
                 f"mongodb://{credentials['username']}:{credentials['password']}"
                 f"@{config.db_host}:{config.db_port}"
@@ -102,10 +96,10 @@ class DatabaseManager:
                 "directConnection": True,
             }
 
-            # Configure SSL for AWS DocumentDB if enabled
-            if self.config.use_ssl:
-                client_options["tls"] = True
-                client_options["tlsCAFile"] = self.config.ssl_ca_cert_path
+            # # Configure SSL for AWS DocumentDB if enabled
+            # if self.config.use_ssl:
+            #     client_options["tls"] = True
+            #     client_options["tlsCAFile"] = self.config.ssl_ca_cert_path
 
             client = MongoClient(connection_string, **client_options)
             # Cache the connection with its creation time and TTL

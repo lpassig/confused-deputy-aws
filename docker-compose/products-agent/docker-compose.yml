@@ -1,6 +1,7 @@
 services:
   products-agent:
-    image: panchalravi/products-agent:${arch}
+    image: panchalravi/products-agent:${tag}
+    platform: ${platform}
     container_name: products-agent
     ports:
       - "8001:8001"

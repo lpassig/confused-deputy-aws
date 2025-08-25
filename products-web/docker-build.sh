@@ -43,19 +43,6 @@ build_multi() {
     print_success "Multi-platform build completed"
 }
 
-# Build development image
-build_dev() {
-    local arch=${1:-"latest"}  # Default to latest if no architecture specified
-    print_section "Building development image for $arch"
-    
-    if [ "$arch" == "latest" ]; then
-        docker build --target development -t products-web:dev . || handle_error "Development build failed"
-    else
-        docker build --platform linux/$arch --target development -t products-web:dev-$arch . || handle_error "Development build failed for $arch"
-    fi
-    print_success "Development build completed"
-}
-
 # Build and push to registry
 build_and_push() {
     if [ -z "$1" ]; then
@@ -64,7 +51,7 @@ build_and_push() {
     fi
     print_section "Building and pushing to registry: $1"
     docker buildx create --use
-    docker buildx build --platform linux/amd64,linux/arm64 -t "$1:latest" --push .
+    docker buildx build --platform linux/amd64,linux/arm64 --target production -t "$1:latest" --push .
     print_success "Multi-platform build and push completed"
 }
 
@@ -85,14 +72,6 @@ run_container() {
                 --env-file .env \
                 products-web:$arch || handle_error "Failed to run container for $arch"
             ;;
-        "dev")
-            print_section "Running development container"
-            docker run \
-                -p 8501:8501 \
-                --env-file .env \
-                -v $(pwd):/app \
-                products-web:dev || handle_error "Failed to run development container"
-            ;;
         "latest"|*)
             print_section "Running container (latest)"
             docker run \
@@ -111,7 +90,6 @@ show_help() {
     echo "  amd64        - Build for AMD64 architecture"
     echo "  arm64        - Build for ARM64 architecture"
     echo "  multi        - Build for both architectures using buildx"
-    echo "  dev [arch]   - Build development image (optional: amd64 or arm64)"
     echo "  push [reg]   - Build and push to registry (reg = registry URL)"
     echo "  run [arch]   - Run the container (arch = amd64, arm64, dev, or latest)"
     echo "  help         - Show this help message"
@@ -119,7 +97,6 @@ show_help() {
     echo "Examples:"
     echo "  $0 amd64                           # Build for AMD64"
     echo "  $0 multi                           # Build for both architectures"
-    echo "  $0 dev                             # Build development image"
     echo "  $0 push myregistry.com/products-web  # Build and push to registry"
     echo "  $0 run dev                         # Run development container with volume mount"
 }
@@ -134,9 +111,6 @@ case "$1" in
         ;;
     "multi")
         build_multi
-        ;;
-    "dev")
-        build_dev "$2"
         ;;
     "push")
         build_and_push "$2"

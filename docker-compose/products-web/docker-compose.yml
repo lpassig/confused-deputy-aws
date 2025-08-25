@@ -1,6 +1,7 @@
 services:
   products-web:
-    image: panchalravi/products-web:${arch}
+    image: panchalravi/products-web:${tag}
+    platform: ${platform}
     container_name: products-web
     ports:
       - "8501:8501"

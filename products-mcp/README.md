@@ -43,10 +43,7 @@ cp .env.example .env
 DB_HOST=your-documentdb-cluster.cluster-xxxxxxxxx.us-east-1.docdb.amazonaws.com
 DB_PORT=27017
 DB_NAME=products_db
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
 COLLECTION_NAME=products
-USE_SSL=true
 ```
 
 ## Configuration
@@ -57,15 +54,11 @@ The server can be configured through environment variables or by modifying the `
 - `DB_HOST`: DocumentDB cluster endpoint
 - `DB_PORT`: Database port (default: 27017)
 - `DB_NAME`: Database name (default: products_db)
-- `DB_USERNAME`: Database username
-- `DB_PASSWORD`: Database password
 - `COLLECTION_NAME`: Collection name (default: products)
-- `USE_SSL`: Enable SSL connection (default: true)
 
 ### Server Configuration
 - `SERVER_HOST`: Server host (default: localhost)
 - `SERVER_PORT`: Server port (default: 8000)
-- `LOG_LEVEL`: Logging level (default: INFO)
 - `MAX_RESULTS`: Maximum results per query (default: 100)
 
 ## Usage
@@ -195,13 +188,6 @@ Get the total count of products in the database.
 {}
 ```
 
-#### 9. `test_database_connection`
-Test the database connection.
-
-**Example:**
-```json
-{}
-```
 
 ## Data Models
 
@@ -235,15 +221,6 @@ The server provides comprehensive error handling:
 - **Business Logic Errors**: Duplicate names, product not found
 - **System Errors**: Unexpected failures with detailed logging
 
-## Logging
-
-The server uses Python's logging module with configurable levels:
-
-- `DEBUG`: Detailed debugging information
-- `INFO`: General operational messages (default)
-- `WARNING`: Warning messages
-- `ERROR`: Error messages
-- `CRITICAL`: Critical errors
 
 Logs can be output to console or file by setting the `LOG_FILE` environment variable.
 
@@ -257,100 +234,3 @@ Logs can be output to console or file by setting the `LOG_FILE` environment vari
   "price": 1299.99
 }
 ```
-
-### Indexes
-The server automatically creates the following indexes for optimal performance:
-- `name` (for search operations)
-- `price` (for sorting operations)
-- `{name: 1, price: 1}` (compound index)
-
-## Development
-
-### Project Structure
-```
-products-mcp/
-├── __init__.py          # Package initialization
-├── main.py              # FastMCP server and tool definitions
-├── models.py            # Pydantic data models
-├── product_service.py   # Product business logic
-├── db_utils.py          # Database connection management
-├── config.py            # Configuration management
-├── .env.example         # Environment variables example
-├── pyproject.toml       # Project dependencies
-└── README.md           # This file
-```
-
-### Running Tests
-```bash
-# Test database connection
-uv run python -c "from db_utils import get_db_manager; print('Connected!' if get_db_manager().test_connection() else 'Failed!')"
-
-# Validate configuration
-uv run python -c "from config import get_config; print(get_config().get_database_info())"
-```
-
-### Code Quality
-The project follows Python best practices:
-- Type hints throughout the codebase
-- Comprehensive error handling
-- Detailed docstrings
-- Pydantic models for data validation
-- Structured logging
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Connection Failed**
-   - Verify DocumentDB endpoint and credentials
-   - Check network connectivity and security groups
-   - Ensure SSL certificates are properly configured
-
-2. **SSL Certificate Issues**
-   - Download the latest RDS CA certificate
-   - Set `SSL_CA_CERT_PATH` environment variable
-   - Verify certificate permissions
-
-3. **Authentication Errors**
-   - Verify username and password
-   - Check user permissions in DocumentDB
-   - Ensure user has read/write access to the database
-
-4. **Performance Issues**
-   - Monitor connection pool settings
-   - Check database indexes
-   - Review query patterns and limits
-
-### Debug Mode
-Enable debug mode by setting:
-```env
-DEBUG=true
-LOG_LEVEL=DEBUG
-```
-
-## Security Considerations
-
-- Always use SSL connections in production
-- Store credentials securely (use environment variables)
-- Implement proper access controls in DocumentDB
-- Regular security updates for dependencies
-- Monitor and log all database operations
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make changes with proper tests
-4. Update documentation
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the logs for detailed error information

@@ -25,30 +25,14 @@ class Config(BaseSettings):
     db_host: str = Field(default="localhost", description="AWS DocumentDB host")
     db_port: int = Field(default=27017, description="AWS DocumentDB port")
     db_name: str = Field(default="products_db", description="Database name")
-    db_username: Optional[str] = Field(default=None, description="Database username")
-    db_password: Optional[str] = Field(default=None, description="Database password")
     collection_name: str = Field(
         default="products", description="Products collection name"
-    )
-
-    # SSL configuration for AWS DocumentDB
-    use_ssl: bool = Field(default=True, description="Use SSL connection")
-    ssl_ca_cert_path: Optional[str] = Field(
-        default=None, description="Path to SSL CA certificate file"
     )
 
     # MCP Server configuration
     server_host: str = Field(default="localhost", description="MCP server host")
     server_port: int = Field(default=8000, description="MCP server port")
     server_name: str = Field(default="products-mcp", description="MCP server name")
-    server_version: str = Field(default="1.0.0", description="MCP server version")
-
-    # Logging configuration
-    log_level: str = Field(default="INFO", description="Logging level")
-    log_file: Optional[str] = Field(default=None, description="Log file path")
-
-    # Application settings
-    debug: bool = Field(default=False, description="Debug mode")
     max_results: int = Field(
         default=100, description="Maximum number of results to return"
     )
@@ -61,15 +45,6 @@ class Config(BaseSettings):
 
     # Vault settings
     vault_addr: str = Field(default=None, description="Vault address")
-
-    @field_validator("log_level")
-    @classmethod
-    def validate_log_level(cls, v):
-        """Validate log level is valid."""
-        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        if v.upper() not in valid_levels:
-            raise ValueError(f"Log level must be one of {valid_levels}")
-        return v.upper()
 
     @field_validator("db_port", "server_port")
     @classmethod
@@ -96,10 +71,8 @@ class Config(BaseSettings):
         """
         return {
             "name": self.server_name,
-            "version": self.server_version,
             "host": self.server_host,
             "port": self.server_port,
-            "debug": self.debug,
         }
 
     model_config = {

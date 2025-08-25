@@ -12,7 +12,7 @@ variable "resource_prefix" {
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string
-  default     = "us-east-1"
+  default     = "ap-southeast-1"
 }
 
 variable "common_tags" {
@@ -41,7 +41,7 @@ variable "hvn_cidr_block" {
 variable "hvn_region" {
   description = "The region where the HVN should be created"
   type        = string
-  default     = "us-east-2"
+  default     = "ap-southeast-1"
 }
 
 variable "vault_cluster_id" {
@@ -66,7 +66,7 @@ variable "vpc_cidr" {
 variable "availability_zones" {
   description = "List of availability zones"
   type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
+  default     = ["ap-southeast-1a", "ap-southeast-1b"]
 }
 
 variable "public_subnet_cidrs" {
