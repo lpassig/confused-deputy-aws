@@ -23,20 +23,20 @@ This repository demonstrates a **secure agentic application** that integrates mu
 The application consists of three main components that work together to provide secure agentic capabilities:
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│                 │     │                 │     │                 │
-│  products-web   │────▶│ products-agent  │────▶│  products-mcp   │
-│   (Frontend)    │     │  (Agent API)    │     │  (MCP Server)   │
-│  Streamlit UI   │     │  FastAPI + AI   │     │ Data Access     │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-         │                        │                        │
-         │ OAuth2/JWT             │ On-Behalf-Of JWT       │ Dynamic DB Creds
-         │                        │                        │
-         ▼                        ▼                        ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ Microsoft       │     │ AWS Bedrock     │     │   HCP Vault     │
-│ Entra ID        │     │ (Nova Pro)      │     │ + DocumentDB    │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+┌─────────────────┐     ┌─────────────────┐            ┌─────────────────┐
+│                 │     │                 │            │                 │
+│  products-web   │────▶│ products-agent  │──────────▶ │  products-mcp   │
+│   (Frontend)    │     │  (Agent API)    │            │  (MCP Server)   │
+│  Streamlit UI   │     │  FastAPI + AI   │            │ Data Access     │
+└─────────────────┘     └─────────────────┘            └─────────────────┘
+         │                   │          │                   │
+         │ OAuth2/JWT        │ OBO      │ LLM               │ Dynamic DB Creds
+         │                   │          │                   │
+         ▼                   ▼          ▼                   ▼
+┌─────────────────┐   ┌────────────┐  ┌────────────┐   ┌─────────────────┐
+│ Microsoft       │   │ Microsoft  │  │ AWS        │   │   HCP Vault     │
+│ Entra ID        │   │ Entra ID   │  │ Bedrock    │   │ + DocumentDB    │
+└─────────────────┘   └────────────┘  └────────────┘   └─────────────────┘
 ```
 
 ### Application Components
