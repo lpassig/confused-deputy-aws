@@ -109,29 +109,32 @@ nano terraform.tfvars
 **Required Variables to Configure:**
 
 ```hcl
-# General Configuration
-resource_prefix = "your-project-name"  # Will be combined with random suffix
-aws_region      = "us-east-1"          # Must be us-east-1 for Nova Pro model
+# General
+resource_prefix = "ai"  # Will be combined with 3-char random suffix
+aws_region      = "us-east-1"
 
-# HCP Configuration  
-hcp_client_id     = "your-hcp-client-id"
-hcp_client_secret = "your-hcp-client-secret"
-
-# Azure AD Configuration
-azure_tenant_id     = "your-azure-tenant-id"
-azure_client_id     = "your-azure-service-principal-client-id"
-azure_client_secret = "your-azure-service-principal-client-secret"
+# HCP Configuration
+hcp_client_id     = "<hcp-client-id>"
+hcp_client_secret = "<hcp-client-secret>" 
 
 # DocumentDB Configuration
-docdb_master_username = "YourDBUsername"
-docdb_master_password = "YourSecurePassword123!"
+docdb_master_username    = "docdbadmin"
+docdb_master_password    = "ChangeMe123!"  # Change this to a secure password
+docdb_instance_class     = "db.t3.medium"
+docdb_instance_count     = 1
 
-# JWT Authentication Configuration
-jwt_oidc_discovery_url = "https://login.microsoftonline.com/{your-tenant-id}/v2.0/.well-known/openid_configuration"
-jwt_bound_issuer       = "https://login.microsoftonline.com/{your-tenant-id}/v2.0"
+# Bastion Host Configuration  
+bastion_instance_type = "t3.medium"
 
-# Azure AD User Configuration
-ad_user_password = "SecureUserPassword123!"
+# JWT Auth Configuration
+jwt_oidc_discovery_url = "https://your-oidc-provider.com/.well-known/openid_configuration"
+jwt_bound_issuer="https://login.microsoftonline.com/<tenant-id>/v2.0
+
+# AzureAD service principal configuration
+azure_client_id="your-azure-service-principal-client-id"
+azure_client_secret="your-azure-service-principal-client-secret"
+azure_tenant_id="your-azure-tenant-id"
+ad_user_password="password-for-test-users!"
 ```
 
 ### 3. Initialize Terraform
