@@ -15,9 +15,11 @@ from config import Config, get_config
 from jwt_verifier import decode_jwt_token
 from vault_client import get_mongodb_credentials
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging level from .env (default to INFO)
+LOG_LEVEL = get_config().log_level.upper()
+# logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.getLevelNamesMapping().get(LOG_LEVEL))
 
 
 class DatabaseManager:
@@ -38,7 +40,7 @@ class DatabaseManager:
         self.config = config or Config()
         self._connections: Dict[str, Tuple[MongoClient, float, float]] = {}
 
-    def get_mongo_client(self, jwt_token: str) -> MongoClient:
+    def get_mongo_client(self, jwt_token: str, x_correlation_id: str) -> MongoClient:
         """
         Establish connection to AWS DocumentDB.
 
@@ -68,20 +70,18 @@ class DatabaseManager:
                         # The 'ping' command is a lightweight way to check connection health
                         client.admin.command("ping")
                         logger.info(f"Cached connection for {sub} is active")
+                        return client
                     except Exception:
                         logger.info(
                             f"Cached connection for {sub} is no longer active, reconnecting..."
                         )
                         self.close_connection(sub)
-                    else:
-                        return client
-                    return client
                 else:
                     # Connection expired, clean up
                     self.close_connection(sub)
 
             # Get fresh credentials from Vault
-            credentials = get_mongodb_credentials(jwt_token)
+            credentials = get_mongodb_credentials(jwt_token, x_correlation_id)
             config = get_config()
 
             connection_string = (

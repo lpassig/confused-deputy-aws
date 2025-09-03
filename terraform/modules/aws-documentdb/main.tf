@@ -50,6 +50,11 @@ resource "aws_docdb_cluster_parameter_group" "main" {
     value = "disabled" # For easier connection from bastion
   }
 
+  parameter {
+    name  = "audit_logs"
+    value = "all"
+  }
+
   tags = merge(var.tags, {
     Name = "${var.cluster_identifier}-parameter-group"
   })
@@ -69,7 +74,8 @@ resource "aws_docdb_cluster" "main" {
   vpc_security_group_ids          = [aws_security_group.documentdb.id]
   db_cluster_parameter_group_name = aws_docdb_cluster_parameter_group.main.name
 
-  storage_encrypted = false
+  storage_encrypted               = false
+  enabled_cloudwatch_logs_exports = ["audit"]
 
   tags = merge(var.tags, {
     Name = var.cluster_identifier

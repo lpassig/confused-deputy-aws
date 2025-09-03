@@ -46,6 +46,9 @@ class Config(BaseSettings):
     # Vault settings
     vault_addr: str = Field(default=None, description="Vault address")
 
+    # Log level
+    log_level: str = Field(default="INFO", description="Logging level")
+
     @field_validator("db_port", "server_port")
     @classmethod
     def validate_port(cls, v):

@@ -20,7 +20,7 @@ variable "common_tags" {
   type        = map(string)
   default = {
     Environment = "dev"
-    Project     = "hcp-vault-documentdb"
+    Project     = "ai-confused-deputy"
     ManagedBy   = "terraform"
   }
 }

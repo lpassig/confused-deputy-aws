@@ -18,19 +18,24 @@ from models import Product, ProductListResponse, ProductResponse
 from product_service import ProductService
 from jwt_verifier import get_jwt_verifier, get_jwt_token_from_header
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 # Initialize configuration
 config = get_config()
 
+# Configure logging level from .env (default to INFO)
+LOG_LEVEL = config.log_level.upper()
+# Configure logging
+logging.basicConfig(
+    level=logging.getLevelNamesMapping().get(LOG_LEVEL),
+    format="%(asctime)s -  %(levelname)s - %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.getLevelNamesMapping().get(LOG_LEVEL))
+
 # Create FastMCP server instance
 mcp = FastMCP("products-mcp", version="1.0.0", auth=get_jwt_verifier())
-# mcp = FastMCP("products-mcp", version="1.0.0")
 
 # Initialize product service
-product_service = ProductService()
+# product_service = ProductService()
 
 
 async def get_jwt_token_from_header(headers: dict) -> str:
@@ -74,11 +79,16 @@ async def list_products(limit: Optional[int] = 10) -> ProductListResponse:
         - count (int): Number of products returned
     """
     try:
-        logger.info(f"Listing products with limit: {limit}")
+        x_correlation_id = get_http_headers().get(
+            "x-correlation-id", "x-correlation-id"
+        )
+        logger.info(f"{x_correlation_id} - Listing products with limit: {limit}")
         # JWT token has been verified by FastMCP JWTVerifier before reaching this point
         jwt_token = await get_jwt_token_from_header(get_http_headers())
 
-        product_service = ProductService(jwt_token=jwt_token)
+        product_service = ProductService(
+            jwt_token=jwt_token, x_correlation_id=x_correlation_id
+        )
         products = await product_service.list_all_products(limit)
 
         return ProductListResponse(
@@ -132,11 +142,18 @@ async def search_products(name: str, exact_match: bool = False) -> ProductListRe
         - count (int): Number of products returned
     """
     try:
-        logger.info(f"Searching products by name: '{name}' (exact={exact_match})")
+        x_correlation_id = get_http_headers().get(
+            "x-correlation-id", "x-correlation-id"
+        )
+        logger.info(
+            f"{x_correlation_id} - Searching products by name: '{name}' (exact={exact_match})"
+        )
         # JWT token has been verified by FastMCP JWTVerifier before reaching this point
         jwt_token = await get_jwt_token_from_header(get_http_headers())
 
-        product_service = ProductService(jwt_token=jwt_token)
+        product_service = ProductService(
+            jwt_token=jwt_token, x_correlation_id=x_correlation_id
+        )
         products = await product_service.search_by_name(
             name=name, exact_match=exact_match
         )
@@ -209,11 +226,18 @@ async def create_product(product: Product) -> ProductResponse:
             - 'price' (float): The product's price.
     """
     try:
-        logger.info(f"Creating product: {product.name} (${product.price})")
+        x_correlation_id = get_http_headers().get(
+            "x-correlation-id", "x-correlation-id"
+        )
+        logger.info(
+            f"{x_correlation_id} - Creating product: {product.name} (${product.price})"
+        )
         # JWT token has been verified by FastMCP JWTVerifier before reaching this point
         jwt_token = await get_jwt_token_from_header(get_http_headers())
 
-        product_service = ProductService(jwt_token=jwt_token)
+        product_service = ProductService(
+            jwt_token=jwt_token, x_correlation_id=x_correlation_id
+        )
         product_data = Product(name=product.name, price=product.price)
         created_product = await product_service.create_product(product_data)
 
@@ -277,11 +301,18 @@ async def update_product(product_id: str, product: Product) -> ProductResponse:
 
     """
     try:
-        logger.info(f"Updating product {product} with ID: {product_id}")
+        x_correlation_id = get_http_headers().get(
+            "x-correlation-id", "x-correlation-id"
+        )
+        logger.info(
+            f"{x_correlation_id} - Updating product {product} with ID: {product_id}"
+        )
         # JWT token has been verified by FastMCP JWTVerifier before reaching this point
         jwt_token = await get_jwt_token_from_header(get_http_headers())
 
-        product_service = ProductService(jwt_token=jwt_token)
+        product_service = ProductService(
+            jwt_token=jwt_token, x_correlation_id=x_correlation_id
+        )
         # Validate required fields
         if not product_id or not product_id.strip():
             return ProductResponse(
@@ -356,11 +387,16 @@ async def delete_product(product_id: str) -> ProductResponse:
         - 'message' (str): Describes the result of the operation.
     """
     try:
-        logger.info(f"Deleting product ID: {product_id}")
+        x_correlation_id = get_http_headers().get(
+            "x-correlation-id", "x-correlation-id"
+        )
+        logger.info(f"{x_correlation_id} - Deleting product ID: {product_id}")
         # JWT token has been verified by FastMCP JWTVerifier before reaching this point
         jwt_token = await get_jwt_token_from_header(get_http_headers())
 
-        product_service = ProductService(jwt_token=jwt_token)
+        product_service = ProductService(
+            jwt_token=jwt_token, x_correlation_id=x_correlation_id
+        )
         deleted = await product_service.delete_product_by_id(product_id)
 
         if deleted:
@@ -467,11 +503,18 @@ async def sort_products_by_price(
         - count (int): Number of products returned
     """
     try:
-        logger.info(f"Sorting products by price (ascending={ascending}, limit={limit})")
+        x_correlation_id = get_http_headers().get(
+            "x-correlation-id", "x-correlation-id"
+        )
+        logger.info(
+            f"{x_correlation_id} - Sorting products by price (ascending={ascending}, limit={limit})"
+        )
         # JWT token has been verified by FastMCP JWTVerifier before reaching this point
         jwt_token = await get_jwt_token_from_header(get_http_headers())
 
-        product_service = ProductService(jwt_token=jwt_token)
+        product_service = ProductService(
+            jwt_token=jwt_token, x_correlation_id=x_correlation_id
+        )
         products = await product_service.sort_products_by_price(
             ascending=ascending, limit=limit
         )

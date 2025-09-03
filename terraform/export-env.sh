@@ -59,6 +59,7 @@ SCOPE="openid profile email $(terraform output -state=$TF_STATE -json products_a
 REDIRECT_URI=${REDIRECT_URI}
 BASE_URL=https://login.microsoftonline.com
 PRODUCTS_AGENT_URL=${PRODUCTS_AGENT_URL}
+LOG_LEVEL=info
 EOF
 
 cat > $ROOT_PATH/products-agent/$ENV_FILE_NAME <<EOF
@@ -78,6 +79,8 @@ BEDROCK_REGION=us-east-1
 
 # MCP Server Configuration
 PRODUCTS_MCP_SERVER_URL=${PRODUCTS_MCP_SERVER_URL}
+
+LOG_LEVEL=info
 EOF
 
 cat > $ROOT_PATH/products-mcp/$ENV_FILE_NAME <<EOF
@@ -99,6 +102,7 @@ JWKS_URI=https://login.windows.net/common/discovery/keys
 JWT_ISSUER=https://login.microsoftonline.com/0aa96723-98b3-4842-9673-73bafaafde70/v2.0
 JWT_AUDIENCE=$(terraform output -state=$TF_STATE -raw products_mcp_client_id)
 VAULT_ADDR=${VAULT_ADDR}
+LOG_LEVEL=info
 EOF
 # cp $WORKDIR/products-mcp/.env $WORKDIR/docker-compose/products-mcp/.env.local
 

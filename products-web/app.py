@@ -10,9 +10,21 @@ import streamlit.components.v1 as components
 from dotenv import load_dotenv
 from jose import JWTError, jwt
 from streamlit_oauth import OAuth2Component
+from uuid import uuid4
+import logging
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging level from .env (default to INFO)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+logging.basicConfig(
+    level=logging.getLevelNamesMapping().get(LOG_LEVEL),
+    format="%(asctime)s - %(levelname)s - %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.getLevelNamesMapping().get(LOG_LEVEL))
 
 # Configuration
 st.set_page_config(
@@ -208,12 +220,22 @@ def get_token_info(token_data: Dict) -> Tuple[bool, str, Optional[Dict]]:
 def call_products_agent(prompt: str, access_token: str) -> Tuple[bool, str]:
     """Call the ProductsAgent API with user prompt"""
     try:
+        # Generate a CorrelationID with the "name" claim from the access_token as the suffix
+        _, payload, _ = decode_jwt_token(access_token)
+        name_claim = payload.get("name", "unknown") if payload else "unknown"
+        correlation_id = f"{uuid4()}-{name_claim}"
+
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
+            "X-Correlation-Id": correlation_id,
         }
 
         payload = {"prompt": prompt}
+
+        logger.info(
+            f"{correlation_id} - Calling ProductsAgent API with payload: {payload}"
+        )
 
         response = requests.post(
             f"{PRODUCTS_AGENT_URL}/agent/invoke",

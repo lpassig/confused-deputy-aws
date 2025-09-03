@@ -65,12 +65,18 @@ resource "vault_jwt_auth_backend" "jwt" {
 
 # JWT Auth Role
 resource "vault_jwt_auth_backend_role" "default" {
-  backend         = vault_jwt_auth_backend.jwt.path
-  role_name       = "default"
-  bound_audiences = ["${var.jwt_bound_audiences}"]
-  user_claim      = "sub"
-  groups_claim    = "groups"
-  role_type       = "jwt"
+  backend              = vault_jwt_auth_backend.jwt.path
+  role_name            = "default"
+  bound_audiences      = ["${var.jwt_bound_audiences}"]
+  user_claim           = "preferred_username"
+  groups_claim         = "groups"
+  role_type            = "jwt"
+  verbose_oidc_logging = true
+  claim_mappings = {
+    "name" = "name"
+    "aud"  = "aud"
+  }
+
 }
 
 # External Identity Groups
@@ -104,3 +110,13 @@ resource "vault_identity_group_alias" "readwrite_alias" {
   mount_accessor = vault_jwt_auth_backend.jwt.accessor
   canonical_id   = vault_identity_group.readwrite.id
 }
+
+# resource "vault_audit_request_header" "x_jwtauth_sub" {
+#   name = "X-JWTAuth-Sub"
+#   hmac = false
+# }
+
+# resource "vault_audit_request_header" "x_jwtauth_aud" {
+#   name = "X-JWTAuth-Aud"
+#   hmac = false
+# }

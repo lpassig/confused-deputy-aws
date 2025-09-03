@@ -11,11 +11,16 @@ from strands.types.content import ContentBlock
 
 from models import get_bedrock_model
 
+# Configure logging level from .env (default to INFO)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.getLevelNamesMapping().get(LOG_LEVEL),
+    format="%(asctime)s -  %(levelname)s - %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.getLevelNamesMapping().get(LOG_LEVEL))
 
 
 def get_system_prompt() -> str:
@@ -66,7 +71,9 @@ class ProductsAgent:
     #         system_prompt=get_system_prompt(),
     #     )
 
-    async def invoke(self, user_prompt: str, jwt_token: str = None) -> str:
+    async def invoke(
+        self, user_prompt: str, jwt_token: str = None, x_correlation_id: str = None
+    ) -> str:
         # Use provided token or fall back to default for testing
         token = jwt_token or DEFAULT_JWT_TOKEN
 
@@ -77,7 +84,10 @@ class ProductsAgent:
         mcp_client = MCPClient(
             lambda: streamablehttp_client(
                 mcp_url,
-                headers={"Authorization": f"Bearer {token}"},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "X-Correlation-ID": x_correlation_id,
+                },
             )
         )
         with mcp_client:
@@ -93,7 +103,7 @@ class ProductsAgent:
             result: AgentResult = await agent.invoke_async(user_prompt)
             if result.message and result.message["content"]:
                 for msg in reversed(result.message["content"]):
-                    logger.info(f"msg: {msg}")
+                    logger.info(f"{x_correlation_id} - msg: {msg}")
                     if msg["text"] and msg["text"].strip():
                         return msg["text"]
 

@@ -1,5 +1,22 @@
+import logging.config
 import os
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Configure logging level from .env (default to INFO)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.getLevelNamesMapping().get(LOG_LEVEL),
+    format="%(asctime)s -  %(levelname)s - %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.getLevelNamesMapping().get(LOG_LEVEL))
+
 from datetime import datetime
 from typing import Dict, Any, Optional
 
@@ -9,21 +26,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 
-from dotenv import load_dotenv
 
 from auth.jwt_utils import JWTValidator, extract_token_from_header
 from auth.entra_token_service import get_entra_token_service
 from api_models import AgentRequest, AgentResponse, ErrorResponse, HealthResponse
 from products_agent import ProductsAgent
 
-# Load environment variables
-load_dotenv()
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 # Global instances
 jwt_validator = None
@@ -133,7 +141,9 @@ async def health_check():
     },
 )
 async def invoke_agent(
-    request: AgentRequest, current_user: Dict[str, Any] = Depends(get_current_user)
+    request: AgentRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    x_correlation_id: Optional[str] = Header(None),
 ):
     """
     Invoke the ProductsAgent with user prompt.
@@ -146,21 +156,21 @@ async def invoke_agent(
     """
     try:
         logger.info(
-            f"Processing agent request for user: {current_user.get('preferred_username', 'unknown')}"
+            f"{x_correlation_id} - Processing agent request for user: {current_user.get('preferred_username', 'unknown')}"
         )
 
         # Get the original user token
         user_token = current_user["_original_token"]
 
         # Exchange user token for on-behalf-of token
-        logger.info("Exchanging user token for on-behalf-of token")
+        logger.debug("Exchanging user token for on-behalf-of token")
         entra_service = get_entra_token_service()
         obo_token = await entra_service.exchange_token_on_behalf_of(user_token)
 
         # Invoke the ProductsAgent with the on-behalf-of token
-        logger.info("Invoking ProductsAgent")
+        logger.debug(f"{x_correlation_id} - Invoking ProductsAgent")
         agent_response = await products_agent.invoke(
-            request.prompt, jwt_token=obo_token
+            request.prompt, jwt_token=obo_token, x_correlation_id=x_correlation_id
         )
 
         return AgentResponse(response=agent_response, success=True)
@@ -198,7 +208,7 @@ async def invoke_agent_stream(
     4. Returns the agent's response
     """
     try:
-        logger.info(
+        logger.debug(
             f"Processing agent request for user: {current_user.get('preferred_username', 'unknown')}"
         )
 
@@ -206,12 +216,12 @@ async def invoke_agent_stream(
         user_token = current_user["_original_token"]
 
         # Exchange user token for on-behalf-of token
-        logger.info("Exchanging user token for on-behalf-of token")
+        logger.debug("Exchanging user token for on-behalf-of token")
         entra_service = get_entra_token_service()
         obo_token = await entra_service.exchange_token_on_behalf_of(user_token)
 
         # Invoke the ProductsAgent with the on-behalf-of token
-        logger.info("Invoking ProductsAgent stream")
+        logger.debug("Invoking ProductsAgent stream")
         # agent_response = await products_agent.invoke(
         #     request.prompt, jwt_token=obo_token
         # )
@@ -282,4 +292,9 @@ async def general_exception_handler(request, exc: Exception):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True, log_level="info")
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8001,
+        reload=False,
+    )

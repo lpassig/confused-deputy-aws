@@ -2,30 +2,34 @@ import jwt
 import hvac
 import time
 from typing import Dict, Tuple
+from requests import Session
 
 import logging
+
+import requests
 from config import get_config
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging level from .env (default to INFO)
+LOG_LEVEL = get_config().log_level.upper()
+# logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.getLevelNamesMapping().get(LOG_LEVEL))
 
 # Initialize a global VaultClient instance
-_vault_client = None
+# _vault_client = None
 
 
-def get_vault_client():
-    global _vault_client
-    if _vault_client is None:
-        config = get_config()
-        if not config.vault_addr:
-            raise ValueError("VAULT_ADDR not found in configuration")
-        _vault_client = VaultClient(config.vault_addr)
+def get_vault_client(x_correlation_id: str):
+    # global _vault_client
+    # if _vault_client is None:
+    config = get_config()
+    if not config.vault_addr:
+        raise ValueError("VAULT_ADDR not found in configuration")
+    _vault_client = VaultClient(config.vault_addr, x_correlation_id)
     return _vault_client
 
 
-def get_mongodb_credentials(jwt_token: str) -> Dict:
+def get_mongodb_credentials(jwt_token: str, x_correlation_id: str) -> Dict:
     """
     Get MongoDB credentials using the global VaultClient instance
 
@@ -35,12 +39,12 @@ def get_mongodb_credentials(jwt_token: str) -> Dict:
     Returns:
         Dict: Dictionary containing MongoDB credentials and metadata
     """
-    client = get_vault_client()
+    client = get_vault_client(x_correlation_id)
     return client.get_mongodb_credentials(jwt_token)
 
 
 class VaultClient:
-    def __init__(self, vault_addr: str):
+    def __init__(self, vault_addr: str, x_correlation_id: str):
         """
         Initialize VaultClient with Vault server address and multi-user credentials cache
 
@@ -48,7 +52,10 @@ class VaultClient:
             vault_addr (str): Vault server address
         """
         self.vault_addr = vault_addr
-        self.client = hvac.Client(url=vault_addr, namespace="admin")
+        self.x_correlation_id = x_correlation_id
+        session = requests.Session()
+        session.headers.update({"X-Correlation-Id": x_correlation_id})
+        self.client = hvac.Client(url=vault_addr, namespace="admin", session=session)
         # Initialize multi-user credentials cache
         self._credentials_cache = {}
 
