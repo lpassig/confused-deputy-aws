@@ -135,6 +135,52 @@ nano providers.tf
 - **Organization Name**: Found in your HCP dashboard URL or organization settings
 - **Project ID**: Found in your HCP project settings or URL
 
+### 4. Configure Region-Specific Variables
+
+**Important**: If you're deploying to a different AWS region than `eu-central-1`, you must update the `variables.tf` file:
+
+```bash
+# Edit the variables configuration file
+nano variables.tf
+```
+
+**Required Changes in `variables.tf` for Different Regions:**
+
+1. **Update AWS Region**: Change the default region:
+   ```hcl
+   variable "aws_region" {
+     description = "AWS region for resources"
+     type        = string
+     default     = "us-east-1"  # Change from "eu-central-1" to your target region
+   }
+   ```
+
+2. **Update HCP HVN Region**: Change the HVN region to match:
+   ```hcl
+   variable "hvn_region" {
+     description = "The region where the HVN should be created"
+     type        = string
+     default     = "us-east-1"  # Change from "eu-central-1" to your target region
+   }
+   ```
+
+3. **Update Availability Zones**: Change AZs to match your target region:
+   ```hcl
+   variable "availability_zones" {
+     description = "List of availability zones"
+     type        = list(string)
+     default     = ["us-east-1a", "us-east-1b"]  # Change from eu-central-1 AZs
+   }
+   ```
+
+**Common AWS Regions and Availability Zones:**
+- **us-east-1**: `["us-east-1a", "us-east-1b", "us-east-1c"]`
+- **us-west-2**: `["us-west-2a", "us-west-2b", "us-west-2c"]`
+- **eu-west-1**: `["eu-west-1a", "eu-west-1b", "eu-west-1c"]`
+- **ap-southeast-1**: `["ap-southeast-1a", "ap-southeast-1b", "ap-southeast-1c"]`
+
+**Note**: Ensure your target region supports all required AWS services (DocumentDB, EKS, etc.).
+
 **Required Variables to Configure:**
 
 ```hcl
@@ -166,7 +212,7 @@ azure_tenant_id="your-azure-tenant-id"
 ad_user_password="password-for-test-users!"
 ```
 
-### 4. Initialize Terraform
+### 5. Initialize Terraform
 
 ```bash
 # Initialize Terraform with all required providers
@@ -183,7 +229,7 @@ This will download and configure the following providers:
 - `hashicorp/random` - For random resource naming
 - `hashicorp/local` - For local file operations
 
-### 5. Plan Deployment
+### 6. Plan Deployment
 
 ```bash
 # Review the planned infrastructure changes
@@ -195,7 +241,7 @@ This command will show you:
 - Dependencies between resources  
 - Any potential issues with your configuration
 
-### 6. Deploy Infrastructure
+### 7. Deploy Infrastructure
 
 ```bash
 # Apply the Terraform configuration
