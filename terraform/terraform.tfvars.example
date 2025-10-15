@@ -1,28 +1,125 @@
-# Copy this file to terraform.tfvars and customize the values
+# =============================================================================
+# TERRAFORM VARIABLES CONFIGURATION FILE
+# =============================================================================
+#
+# Copy this file to terraform.tfvars and customize the values for your environment.
+#
+# CRITICAL: This file contains hardcoded values that must be updated for
+# different deployment environments. See the documentation below for details.
+#
+# PRODUCTION DEPLOYMENT LEARNINGS:
+#
+# 1. Azure AD Client Secret Regeneration:
+#    - Client secrets are regenerated every terraform apply
+#    - Must update docker-compose files after each apply
+#    - Use post-deploy-fix.sh script to automate updates
+#
+# 2. Nova Pro Model Requirements:
+#    - Requires inference profiles, not direct model access
+#    - Multi-region IAM permissions needed
+#    - Account ID must be updated in IAM policy
+#
+# 3. JWT Audience Configuration:
+#    - ProductsAgent: Use identifier URI
+#    - ProductsMCP: Use client ID
+#
+# 4. ECR Region Configuration:
+#    - ECR login region must match deployment region
+#    - Currently hardcoded to eu-central-1 in deploy-ecr.sh
+#
+# =============================================================================
 
-# General
+# General Configuration
+# =====================
 resource_prefix = "ai"  # Will be combined with 3-char random suffix
-aws_region      = "us-east-1"
+aws_region      = "eu-central-1"  # CRITICAL: Update for different regions
 
 # HCP Configuration
+# =================
+# Get these values from your HCP service principal
 hcp_client_id     = "<hcp-client-id>"
 hcp_client_secret = "<hcp-client-secret>"
 
 # DocumentDB Configuration
+# =========================
 docdb_master_username    = "docdbadmin"
-docdb_master_password    = "ChangeMe123!"  # Change this to a secure password
+docdb_master_password    = "!PegasusIBM!"  # CRITICAL: Change this to a secure password
 docdb_instance_class     = "db.t3.medium"
 docdb_instance_count     = 1
 
-# Bastion Host Configuration  
+# Bastion Host Configuration
+# ===========================
 bastion_instance_type = "t3.medium"
 
 # JWT Auth Configuration
-jwt_oidc_discovery_url = "https://your-oidc-provider.com/.well-known/openid_configuration"
-jwt_bound_issuer="https://login.microsoftonline.com/<tenant-id>/v2.0
+# ======================
+# CRITICAL: Update these URLs with your Microsoft Entra ID tenant ID
+jwt_oidc_discovery_url = "https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration"
+jwt_bound_issuer="https://login.microsoftonline.com/<tenant-id>/v2.0"
 
-# AzureAD service principal configuration
+# Azure AD Service Principal Configuration
+# ========================================
+# CRITICAL: These values are regenerated every terraform apply
+# You must update docker-compose files after each apply
 azure_client_id="your-azure-service-principal-client-id"
 azure_client_secret="your-azure-service-principal-client-secret"
 azure_tenant_id="your-azure-tenant-id"
 ad_user_password="password-for-test-users!"
+
+# =============================================================================
+# HARDCODED VALUES THAT MUST BE UPDATED
+# =============================================================================
+#
+# The following values are currently hardcoded and must be updated for
+# different deployment environments:
+#
+# 1. AWS Region (line 5):
+#    - Current: "eu-central-1"
+#    - Update: Change to your target region
+#    - Also update: hvn_region in variables.tf
+#    - Also update: availability_zones in variables.tf
+#    - Also update: ECR region in deploy-ecr.sh
+#
+# 2. DocumentDB Password (line 13):
+#    - Current: "!PegasusIBM!"
+#    - Update: Change to a secure password
+#    - Must be updated in all environments
+#
+# 3. Tenant ID (lines 21-22):
+#    - Current: "<tenant-id>"
+#    - Update: Replace with your Microsoft Entra ID tenant ID
+#    - Also update: export-env.sh script
+#    - Also update: docker-compose files
+#
+# 4. Azure Service Principal (lines 25-27):
+#    - Current: Placeholder values
+#    - Update: Replace with your actual service principal credentials
+#    - Note: These are regenerated every terraform apply
+#
+# 5. Account ID in IAM Policy:
+#    - Current: YOUR_AWS_ACCOUNT_ID (hardcoded in modules/bastion/alb-resources.tf)
+#    - Update: Replace with your AWS account ID
+#    - Required for Nova Pro inference profile ARNs
+#
+# =============================================================================
+#
+# POST-DEPLOYMENT STEPS:
+#
+# After running 'terraform apply', you must:
+#
+# 1. Update client secrets in docker-compose files:
+#    ./post-deploy-fix.sh
+#
+# 2. Rebuild and redeploy containers:
+#    ./deploy-ecr.sh full
+#
+# 3. Verify Nova Pro configuration:
+#    - Check BEDROCK_MODEL_ID="eu.amazon.nova-pro-v1:0"
+#    - Verify IAM permissions include all regions
+#
+# 4. Test application:
+#    - Navigate to ALB URL
+#    - Complete OAuth authentication
+#    - Test AI chat functionality
+#
+# =============================================================================

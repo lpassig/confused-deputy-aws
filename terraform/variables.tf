@@ -1,3 +1,93 @@
+# =============================================================================
+# HARDCODED VALUES DOCUMENTATION
+# =============================================================================
+#
+# This file contains variables with hardcoded default values that must be
+# updated for different deployment environments. The following values are
+# currently hardcoded and need to be changed:
+#
+# CRITICAL HARDCODED VALUES:
+#
+# 1. AWS Region Configuration:
+#    - aws_region: "eu-central-1" (line 15)
+#    - hvn_region: "eu-central-1" (line 44)
+#    - availability_zones: ["eu-central-1a", "eu-central-1b"] (line 69)
+#
+# 2. Network Configuration:
+#    - vpc_cidr: "10.0.0.0/16" (line 63)
+#    - hvn_cidr_block: "172.25.16.0/20" (line 38)
+#    - public_subnet_cidrs: ["10.0.1.0/24", "10.0.2.0/24"] (line 75)
+#    - private_subnet_cidrs: ["10.0.10.0/24", "10.0.20.0/24"] (line 81)
+#
+# 3. Resource Naming:
+#    - resource_prefix: "ai" (line 5)
+#    - hvn_id: "ai-vault-hvn" (line 32)
+#    - vault_cluster_id: "ai-vault-cluster" (line 50)
+#    - docdb_cluster_identifier: "docdb-cluster" (line 88)
+#    - bastion_key_name: "bastion-key" (line 125)
+#
+# 4. Instance Configuration:
+#    - bastion_instance_type: "t3.medium" (line 119)
+#    - docdb_instance_class: "db.t3.medium" (line 106)
+#    - docdb_instance_count: 1 (line 112)
+#
+# 5. EKS Configuration:
+#    - eks_kubernetes_version: "1.30" (line 187)
+#    - eks_node_group_instance_types: ["m5.large"] (line 212)
+#    - eks_node_group_desired_size: 2 (line 218)
+#    - eks_node_group_max_size: 3 (line 224)
+#    - eks_node_group_min_size: 2 (line 230)
+#
+# 6. Security Configuration:
+#    - eks_public_access_cidrs: ["0.0.0.0/0"] (line 193)
+#    - eks_cluster_log_types: ["api", "audit", "authenticator", "controllerManager", "scheduler"] (line 199)
+#
+# PRODUCTION DEPLOYMENT LEARNINGS:
+#
+# 1. Nova Pro Model Requirements:
+#    - Requires inference profiles, not direct model access
+#    - Multi-region IAM permissions needed (eu-central-1, eu-west-3, eu-west-1, eu-north-1)
+#    - Account ID must be updated in IAM policy (currently: YOUR_AWS_ACCOUNT_ID)
+#
+# 2. Azure AD Client Secret Regeneration:
+#    - Client secrets are regenerated every terraform apply
+#    - Must update docker-compose files after each apply
+#    - Use post-deploy-fix.sh script to automate updates
+#
+# 3. JWT Audience Configuration:
+#    - ProductsAgent: Use identifier URI (api://docloudright.onmicrosoft.com/products-agent)
+#    - ProductsMCP: Use client ID (YOUR_PRODUCTS_MCP_CLIENT_ID)
+#
+# 4. ECR Region Configuration:
+#    - ECR login region must match deployment region
+#    - Currently hardcoded to eu-central-1 in deploy-ecr.sh
+#
+# 5. Environment Variable Precedence:
+#    - Docker Compose environment variables override .env file variables
+#    - Use env_file for base configuration, environment for overrides
+#
+# UPDATING FOR DIFFERENT ENVIRONMENTS:
+#
+# 1. Change AWS Region:
+#    - Update aws_region, hvn_region, availability_zones
+#    - Update ECR region in deploy-ecr.sh
+#    - Update IAM policy ARNs for new region
+#
+# 2. Change Account ID:
+#    - Update IAM policy ARNs in modules/bastion/alb-resources.tf
+#    - Replace YOUR_AWS_ACCOUNT_ID with your account ID
+#
+# 3. Change Tenant ID:
+#    - Update terraform.tfvars with new tenant ID
+#    - Update export-env.sh with new tenant ID
+#    - Update docker-compose files with new tenant ID
+#
+# 4. Change Resource Prefix:
+#    - Update resource_prefix variable
+#    - This affects all resource names
+#
+# =============================================================================
+
 # General variables
 variable "resource_prefix" {
   description = "Prefix for all resource names"
@@ -12,7 +102,7 @@ variable "resource_prefix" {
 variable "aws_region" {
   description = "AWS region for resources"
   type        = string
-  default     = "ap-southeast-1"
+  default     = "eu-central-1"
 }
 
 variable "common_tags" {
@@ -41,7 +131,7 @@ variable "hvn_cidr_block" {
 variable "hvn_region" {
   description = "The region where the HVN should be created"
   type        = string
-  default     = "ap-southeast-1"
+  default     = "eu-central-1"
 }
 
 variable "vault_cluster_id" {
@@ -66,7 +156,7 @@ variable "vpc_cidr" {
 variable "availability_zones" {
   description = "List of availability zones"
   type        = list(string)
-  default     = ["ap-southeast-1a", "ap-southeast-1b"]
+  default     = ["eu-central-1a", "eu-central-1b"]
 }
 
 variable "public_subnet_cidrs" {

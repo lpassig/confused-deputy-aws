@@ -62,6 +62,11 @@ variable "docdb_password" {
   sensitive   = true
 }
 
+variable "aws_account_id" {
+  description = "AWS Account ID for Bedrock inference profile ARNs"
+  type        = string
+}
+
 variable "public_subnet_ids" {
   description = "List of public subnet IDs for the ALB"
   type        = list(string)

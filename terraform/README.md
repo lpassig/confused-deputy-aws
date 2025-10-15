@@ -72,20 +72,235 @@ export AZURE_CLIENT_SECRET="your-azure-service-principal-client-secret"
 
 ### 4. AWS Bedrock Configuration
 
-- **Model Access**: Enable access to the **Nova Pro model** in the **us-east-1** region
+- **Model Access**: Enable access to the **Nova Pro model** in the **eu-central-1** region
   
-**Important**: This application has been specifically tested with the **Nova Pro model** in the **us-east-1** region. Enable model access through the AWS Console:
+**Important**: This application has been specifically tested with the **Nova Pro model** in the **eu-central-1** region. Enable model access through the AWS Console:
 
-1. Navigate to AWS Bedrock console in **us-east-1** region
+1. Navigate to AWS Bedrock console in **eu-central-1** region
 2. Go to "Model Access" in the left sidebar
 3. Request access to the **Nova Pro** model
 4. Wait for approval (this may take some time)
 
-### 5. Required Tools
+**Critical**: Nova Pro requires **inference profiles**, not direct model access. The Terraform configuration automatically includes the correct inference profile ARNs and multi-region permissions.
+
+### 5. Update Hardcoded Paths in `export-env.sh`
+
+**Important**: The `export-env.sh` script contains hardcoded paths that must be updated for your environment:
+
+```bash
+# Edit the export script
+nano export-env.sh
+```
+
+**Required Changes:**
+
+1. **Update ROOT_PATH for all environments**:
+   ```bash
+   # Replace YOUR_USERNAME with your actual username
+   ROOT_PATH="/Users/YOUR_USERNAME/docloudright/confused-deputy-aws"
+   ```
+
+2. **Update TF_STATE path**:
+   ```bash
+   export TF_STATE=/Users/YOUR_USERNAME/docloudright/confused-deputy-aws/terraform/terraform.tfstate
+   ```
+
+3. **Update Tenant ID** (if using Microsoft Entra ID):
+   ```bash
+   TENANT_ID=your-tenant-id-here
+   JWT_ISSUER=https://login.microsoftonline.com/your-tenant-id-here/v2.0
+   ```
+
+### 6. Required Tools
 
 - **Terraform**: Version >= 1.5
 - **AWS CLI**: Latest version, properly configured
 - **HCP CLI**: For HCP management (optional but recommended)
+
+**Note:** The infrastructure automatically configures ECR permissions for the bastion host, so no additional IAM setup is required for container deployments.
+
+## 🔧 Production Deployment Learnings
+
+**This section documents critical learnings from production deployment that must be addressed:**
+
+### Critical Issues and Solutions
+
+#### 1. Azure AD Client Secret Regeneration
+
+**Issue**: Azure AD client secrets are regenerated every time Terraform applies, breaking existing deployments.
+
+**Impact**: 
+- Existing containers lose authentication
+- OAuth flows fail with 401 Unauthorized errors
+- Application becomes inaccessible
+
+**Solution**: After every `terraform apply`, update client secrets:
+
+```bash
+# Get new client secrets from Terraform
+cd terraform
+PRODUCTS_WEB_SECRET=$(terraform output -raw products_web_client_secret)
+PRODUCTS_AGENT_SECRET=$(terraform output -raw products_agent_client_secret)
+
+# Update docker-compose files
+sed -i "s/ENTRA_CLIENT_SECRET=.*/ENTRA_CLIENT_SECRET=$PRODUCTS_AGENT_SECRET/" ../docker-compose/products-agent/docker-compose.yml
+sed -i "s/CLIENT_SECRET=.*/CLIENT_SECRET=$PRODUCTS_WEB_SECRET/" ../docker-compose/products-web/.env
+
+# Redeploy to update secrets
+cd ..
+./deploy-ecr.sh deploy
+```
+
+#### 2. Nova Pro Inference Profile Requirements
+
+**Issue**: Nova Pro requires inference profiles, not direct model access.
+
+**Error**: `ValidationException: Invocation of model ID amazon.nova-pro-v1:0 with on-demand throughput isn't supported`
+
+**Solution**: Use inference profile ID:
+
+```bash
+# Correct configuration
+export BEDROCK_MODEL_ID="eu.amazon.nova-pro-v1:0"  # Inference profile ID
+export BEDROCK_REGION="eu-central-1"
+```
+
+#### 3. Multi-Region IAM Policy Requirements
+
+**Issue**: Nova Pro inference profiles require permissions across multiple regions.
+
+**Error**: `AccessDeniedException: User is not authorized to perform: bedrock:InvokeModel`
+
+**Solution**: Terraform automatically includes all supported regions:
+
+```hcl
+# terraform/modules/bastion/alb-resources.tf
+resources = [
+  # Inference profiles for all supported regions
+  "arn:aws:bedrock:eu-central-1:YOUR_AWS_ACCOUNT_ID:inference-profile/eu.amazon.nova-pro-v1:0",
+  "arn:aws:bedrock:eu-west-3:YOUR_AWS_ACCOUNT_ID:inference-profile/eu.amazon.nova-pro-v1:0",
+  "arn:aws:bedrock:eu-west-1:YOUR_AWS_ACCOUNT_ID:inference-profile/eu.amazon.nova-pro-v1:0",
+  "arn:aws:bedrock:eu-north-1:YOUR_AWS_ACCOUNT_ID:inference-profile/eu.amazon.nova-pro-v1:0",
+  # Foundation models for all supported regions
+  "arn:aws:bedrock:eu-central-1::foundation-model/amazon.nova-pro-v1:0",
+  "arn:aws:bedrock:eu-west-3::foundation-model/amazon.nova-pro-v1:0",
+  "arn:aws:bedrock:eu-west-1::foundation-model/amazon.nova-pro-v1:0",
+  "arn:aws:bedrock:eu-north-1::foundation-model/amazon.nova-pro-v1:0"
+]
+```
+
+#### 4. OAuth State Mismatch Resolution
+
+**Issue**: Cached Docker images cause OAuth state mismatches.
+
+**Error**: `StreamlitOauthError: STATE DOES NOT MATCH OR OUT OF DATE`
+
+**Solution**: Force rebuild and redeploy:
+
+```bash
+# Force rebuild and redeploy
+./deploy-ecr.sh build
+./deploy-ecr.sh deploy
+```
+
+#### 5. JWT Audience Configuration
+
+**Issue**: JWT audience must match the identifier URI, not the client ID.
+
+**Error**: `API Error: Invalid token: Signature verification failed`
+
+**Solution**: Configure JWT audience correctly:
+
+```bash
+# ProductsAgent JWT audience should be the identifier URI
+JWT_AUDIENCE="api://docloudright.onmicrosoft.com/products-agent"
+
+# ProductsMCP JWT audience should be the client ID
+JWT_AUDIENCE="YOUR_PRODUCTS_MCP_CLIENT_ID"
+```
+
+#### 6. Hardcoded Values in Docker Compose
+
+**Issue**: Docker Compose files contain hardcoded client IDs, secrets, and URLs.
+
+**Current Hardcoded Values** (must be updated after Terraform apply):
+
+```yaml
+# docker-compose/products-agent/docker-compose.yml
+environment:
+  - ENTRA_CLIENT_ID=YOUR_PRODUCTS_AGENT_CLIENT_ID
+  - ENTRA_CLIENT_SECRET=YOUR_PRODUCTS_AGENT_CLIENT_SECRET
+  - ENTRA_SCOPE=api://docloudright.onmicrosoft.com/products-mcp/Products.Read api://docloudright.onmicrosoft.com/products-mcp/Products.List api://docloudright.onmicrosoft.com/products-mcp/Products.Write api://docloudright.onmicrosoft.com/products-mcp/Products.Delete
+  - ENTRA_TOKEN_URL=https://login.microsoftonline.com/YOUR_TENANT_ID/oauth2/v2.0/token
+  - JWKS_URI=https://login.microsoftonline.com/YOUR_TENANT_ID/discovery/v2.0/keys
+  - JWT_ISSUER=https://sts.windows.net/YOUR_TENANT_ID/
+  - JWT_AUDIENCE=YOUR_PRODUCTS_AGENT_CLIENT_ID
+```
+
+#### 7. ECR Region Configuration
+
+**Issue**: ECR login region must match the deployment region.
+
+**Solution**: Deployment script automatically uses correct region:
+
+```bash
+# deploy-ecr.sh automatically uses eu-central-1 for ECR login
+aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.eu-central-1.amazonaws.com
+```
+
+#### 8. Environment Variable Precedence
+
+**Issue**: Docker Compose environment variables override .env file variables.
+
+**Solution**: Use `env_file` for base configuration and `environment` for overrides:
+
+```yaml
+services:
+  products-agent:
+    env_file:
+      - .env  # Base configuration
+    environment:
+      - ENTRA_CLIENT_SECRET=override_value  # Override specific values
+```
+
+### Post-Deployment Checklist
+
+After every `terraform apply`, verify these critical configurations:
+
+1. **✅ Client Secrets Updated**: Check that new client secrets are in docker-compose files
+2. **✅ JWT Audience Correct**: Verify JWT audience matches identifier URI or client ID
+3. **✅ Nova Pro Configuration**: Ensure inference profile ID is used, not model ID
+4. **✅ Multi-Region Permissions**: Verify IAM policy includes all required regions
+5. **✅ ECR Region Match**: Confirm ECR login uses correct region
+6. **✅ Container Rebuild**: Force rebuild if authentication changes were made
+7. **✅ Environment Variables**: Check that environment variables are properly set
+
+### Automated Fix Script
+
+Create a script to automate post-deployment fixes:
+
+```bash
+#!/bin/bash
+# post-deploy-fix.sh
+
+echo "🔧 Applying post-deployment fixes..."
+
+# Get new client secrets
+cd terraform
+PRODUCTS_WEB_SECRET=$(terraform output -raw products_web_client_secret)
+PRODUCTS_AGENT_SECRET=$(terraform output -raw products_agent_client_secret)
+cd ..
+
+# Update docker-compose files
+sed -i "s/ENTRA_CLIENT_SECRET=.*/ENTRA_CLIENT_SECRET=$PRODUCTS_AGENT_SECRET/" docker-compose/products-agent/docker-compose.yml
+sed -i "s/CLIENT_SECRET=.*/CLIENT_SECRET=$PRODUCTS_WEB_SECRET/" docker-compose/products-web/.env
+
+# Force rebuild and redeploy
+./deploy-ecr.sh build
+./deploy-ecr.sh deploy
+
+echo "✅ Post-deployment fixes applied!"
+```
 
 ## Infrastructure Setup
 
@@ -106,7 +321,7 @@ cp terraform.tfvars.example terraform.tfvars
 nano terraform.tfvars
 ```
 
-### 3. Configure Provider Settings
+### 4. Configure Provider Settings
 
 **Important**: You must also update the `providers.tf` file to use your specific HCP organization and project details:
 
@@ -135,7 +350,7 @@ nano providers.tf
 - **Organization Name**: Found in your HCP dashboard URL or organization settings
 - **Project ID**: Found in your HCP project settings or URL
 
-### 4. Configure Region-Specific Variables
+### 5. Configure Region-Specific Variables
 
 **Important**: If you're deploying to a different AWS region than `eu-central-1`, you must update the `variables.tf` file:
 
@@ -212,7 +427,7 @@ azure_tenant_id="your-azure-tenant-id"
 ad_user_password="password-for-test-users!"
 ```
 
-### 5. Initialize Terraform
+### 6. Initialize Terraform
 
 ```bash
 # Initialize Terraform with all required providers
@@ -229,7 +444,7 @@ This will download and configure the following providers:
 - `hashicorp/random` - For random resource naming
 - `hashicorp/local` - For local file operations
 
-### 6. Plan Deployment
+### 7. Plan Deployment
 
 ```bash
 # Review the planned infrastructure changes
@@ -241,7 +456,7 @@ This command will show you:
 - Dependencies between resources  
 - Any potential issues with your configuration
 
-### 7. Deploy Infrastructure
+### 8. Deploy Infrastructure
 
 ```bash
 # Apply the Terraform configuration

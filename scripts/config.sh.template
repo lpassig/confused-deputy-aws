@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Configuration file for automated secret management scripts
+# This file contains all the hardcoded values that need to be updated for different environments
+# Generated automatically by auto-configure.sh
+
+# =============================================================================
+# BASTION HOST CONFIGURATION
+# =============================================================================
+# Update these values based on your Terraform outputs
+BASTION_HOST="${BASTION_HOST:-YOUR_BASTION_HOST_IP}"  # Replace with: terraform output -raw bastion_public_ip
+SSH_KEY="${SSH_KEY:-terraform/YOUR_SSH_KEY.pem}"  # Replace with your SSH key path
+
+# =============================================================================
+# MICROSOFT ENTRA ID CONFIGURATION
+# =============================================================================
+# Update these values based on your Azure AD tenant configuration
+TENANT_ID="${TENANT_ID:-YOUR_TENANT_ID}"  # Replace with your tenant ID
+PRODUCTS_AGENT_CLIENT_ID="${PRODUCTS_AGENT_CLIENT_ID:-YOUR_PRODUCTS_AGENT_CLIENT_ID}"  # ProductsAgent app registration
+PRODUCTS_WEB_CLIENT_ID="${PRODUCTS_WEB_CLIENT_ID:-YOUR_PRODUCTS_WEB_CLIENT_ID}"  # ProductsWeb app registration
+PRODUCTS_MCP_CLIENT_ID="${PRODUCTS_MCP_CLIENT_ID:-YOUR_PRODUCTS_MCP_CLIENT_ID}"  # ProductsMCP app registration
+
+# =============================================================================
+# DERIVED CONFIGURATION (DO NOT MODIFY)
+# =============================================================================
+# These values are automatically derived from the above configuration
+JWKS_URI="https://login.microsoftonline.com/${TENANT_ID}/discovery/v2.0/keys"
+JWT_ISSUER="https://login.microsoftonline.com/${TENANT_ID}/v2.0"
+ENTRA_TOKEN_URL="https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token"
+
+# =============================================================================
+# SERVICE CONFIGURATION
+# =============================================================================
+# Service names and ports (usually don't need to change)
+PRODUCTS_AGENT_CONTAINER="products-agent"
+PRODUCTS_WEB_CONTAINER="products-web"
+PRODUCTS_MCP_CONTAINER="products-mcp"
+
+PRODUCTS_AGENT_PORT="8001"
+PRODUCTS_WEB_PORT="8501"
+PRODUCTS_MCP_PORT="8000"
+
+# Health check endpoints
+PRODUCTS_AGENT_HEALTH="/health"
+PRODUCTS_WEB_HEALTH="/_stcore/health"
+PRODUCTS_MCP_HEALTH="/mcp"
+
+# =============================================================================
+# ENVIRONMENT VARIABLE NAMES
+# =============================================================================
+# These are the environment variable names used in containers
+AGENT_SECRET_ENV_VAR="ENTRA_CLIENT_SECRET"
+WEB_SECRET_ENV_VAR="CLIENT_SECRET"
+
+# =============================================================================
+# TERRAFORM OUTPUT NAMES
+# =============================================================================
+# These are the Terraform output names for client secrets
+AGENT_SECRET_OUTPUT="products_agent_client_secret"
+WEB_SECRET_OUTPUT="products_web_client_secret"
+
+# =============================================================================
+# LOG PATTERNS FOR MONITORING
+# =============================================================================
+# Patterns to look for in logs to detect authentication failures
+AUTH_ERROR_PATTERNS="invalid_client|AADSTS7000215|Token exchange failed|Authentication failed"
+
+# =============================================================================
+# PATHS
+# =============================================================================
+# Directory paths (update if your structure is different)
+TERRAFORM_DIR="terraform"
+DOCKER_COMPOSE_DIR="/home/ubuntu/docker-compose"
+LOG_FILE="/home/ubuntu/auto-update-secrets.log"
+
+# =============================================================================
+# USAGE INSTRUCTIONS
+# =============================================================================
+# To use this configuration file in your scripts:
+# 1. Copy this file: cp scripts/config.sh.example scripts/config.sh
+# 2. Update values above for your environment
+# 3. Source this file: source scripts/config.sh
+# 4. Run scripts as normal: ./scripts/update-secrets.sh

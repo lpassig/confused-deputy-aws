@@ -21,10 +21,10 @@ fi
 
 echo "Generating .env files for '$ENV_TYPE' environment..."
 
-
-# --- Environment-specific Variables ---
+# Set Terraform state path
+export TF_STATE=/Users/lennartpassig/docloudright/confused-deputy-aws/terraform/terraform.tfstate
 if [ "$ENV_TYPE" = "local" ]; then
-    ROOT_PATH="/Users/ravipanchal/learn/vault/confused-deputy-aws"
+    ROOT_PATH="/Users/lennartpassig/docloudright/confused-deputy-aws"
     PRODUCTS_AGENT_URL="http://localhost:8001"
     PRODUCTS_MCP_SERVER_URL="http://localhost:8000/mcp"
     DB_HOST="localhost"
@@ -32,15 +32,15 @@ if [ "$ENV_TYPE" = "local" ]; then
     VAULT_ADDR=$(terraform output -state=$TF_STATE -raw vault_public_endpoint_url)
     ENV_FILE_NAME=".env"
 elif [ "$ENV_TYPE" = "aws" ]; then
-    ROOT_PATH="/Users/ravipanchal/learn/vault/confused-deputy-aws/docker-compose"
+    ROOT_PATH="/Users/lennartpassig/docloudright/confused-deputy-aws/docker-compose"
     PRODUCTS_AGENT_URL="http://products-agent:8001"
     PRODUCTS_MCP_SERVER_URL="http://products-mcp:8000/mcp"
     DB_HOST=$(terraform output -state=$TF_STATE -raw documentdb_cluster_endpoint)
     REDIRECT_URI=$(terraform output -state=$TF_STATE -raw alb_https_url)/oauth2callback
-    VAULT_ADDR=$(terraform output -state=$TF_STATE -raw vault_private_endpoint_url)
+    VAULT_ADDR=$(terraform output -state=$TF_STATE -raw vault_public_endpoint_url)
     ENV_FILE_NAME=".env"
 else # docker
-    ROOT_PATH="/Users/ravipanchal/learn/vault/confused-deputy-aws/docker-compose"
+    ROOT_PATH="/Users/lennartpassig/docloudright/confused-deputy-aws/docker-compose"
     PRODUCTS_AGENT_URL="http://products-agent:8001"
     PRODUCTS_MCP_SERVER_URL="http://products-mcp:8000/mcp"
     DB_HOST="$(ipconfig getifaddr en0)"
@@ -49,10 +49,15 @@ else # docker
     ENV_FILE_NAME=".env.local"
 fi
 
-export TF_STATE=/Users/ravipanchal/learn/vault/confused-deputy-aws/terraform/terraform.tfstate
+
+# ECR Configuration
+export ECR_REGISTRY_URL=$(terraform output -state=$TF_STATE -raw ecr_registry_url)
+export ECR_PRODUCTS_WEB_REPO=$(terraform output -state=$TF_STATE -raw ecr_products_web_repository_url | sed 's|.*/||')
+export ECR_PRODUCTS_AGENT_REPO=$(terraform output -state=$TF_STATE -raw ecr_products_agent_repository_url | sed 's|.*/||')
+export ECR_PRODUCTS_MCP_REPO=$(terraform output -state=$TF_STATE -raw ecr_products_mcp_repository_url | sed 's|.*/||')
 
 cat > $ROOT_PATH/products-web/$ENV_FILE_NAME <<EOF
-TENANT_ID=0aa96723-98b3-4842-9673-73bafaafde70
+TENANT_ID=${TENANT_ID:-YOUR_TENANT_ID}
 CLIENT_ID=$(terraform output -state=$TF_STATE -raw products_web_client_id)
 CLIENT_SECRET=$(terraform output -state=$TF_STATE -raw products_web_client_secret)
 SCOPE="openid profile email $(terraform output -state=$TF_STATE -json products_agent_scopes | jq '. | join(" ")' -r)"
@@ -64,18 +69,19 @@ EOF
 
 cat > $ROOT_PATH/products-agent/$ENV_FILE_NAME <<EOF
 JWKS_URI=https://login.windows.net/common/discovery/keys
-JWT_ISSUER=https://login.microsoftonline.com/0aa96723-98b3-4842-9673-73bafaafde70/v2.0
+JWT_ISSUER=https://login.microsoftonline.com/${TENANT_ID}/v2.0
 JWT_AUDIENCE=$(terraform output -state=$TF_STATE -raw products_agent_client_id)
 
 # Microsoft Entra ID OAuth On-Behalf-Of Flow Configuration
 ENTRA_CLIENT_ID=$(terraform output -state=$TF_STATE -raw products_agent_client_id)
 ENTRA_CLIENT_SECRET=$(terraform output -state=$TF_STATE -raw products_agent_client_secret)
 ENTRA_SCOPE="$(terraform output -state=$TF_STATE -json products_mcp_scopes | jq '. | join(" ")' -r)"
-ENTRA_TOKEN_URL=https://login.microsoftonline.com/0aa96723-98b3-4842-9673-73bafaafde70/oauth2/v2.0/token
+ENTRA_TOKEN_URL=https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token
 
 # Bedrock LLM configuration
-BEDROCK_MODEL_ID=amazon.nova-pro-v1:0
-BEDROCK_REGION=us-east-1
+BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-eu.amazon.nova-pro-v1:0}
+BEDROCK_TEMPERATURE=${BEDROCK_TEMPERATURE:-0.1}
+BEDROCK_REGION=${BEDROCK_REGION:-eu-central-1}
 
 # MCP Server Configuration
 PRODUCTS_MCP_SERVER_URL=${PRODUCTS_MCP_SERVER_URL}
@@ -99,7 +105,7 @@ SERVER_NAME=products-mcp
 MAX_RESULTS=100
 
 JWKS_URI=https://login.windows.net/common/discovery/keys
-JWT_ISSUER=https://login.microsoftonline.com/0aa96723-98b3-4842-9673-73bafaafde70/v2.0
+JWT_ISSUER=https://login.microsoftonline.com/${TENANT_ID}/v2.0
 JWT_AUDIENCE=$(terraform output -state=$TF_STATE -raw products_mcp_client_id)
 VAULT_ADDR=${VAULT_ADDR}
 LOG_LEVEL=info

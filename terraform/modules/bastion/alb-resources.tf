@@ -113,8 +113,8 @@ resource "aws_lb_target_group" "bastion_tg" {
     path                = "/"
     port                = "traffic-port"
     protocol            = "HTTP"
-    timeout             = 5
-    unhealthy_threshold = 2
+    timeout             = 10
+    unhealthy_threshold = 5
   }
 
   tags = merge(var.tags, {
@@ -175,15 +175,54 @@ resource "aws_lb_listener" "http" {
   }
 }
 
+# IAM policy for ECR access
+data "aws_iam_policy_document" "ecr_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "ecr:GetAuthorizationToken",
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:BatchGetImage"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "ecr_policy" {
+  name        = "${var.name_prefix}-ecr-access"
+  description = "Policy to allow ECR access for pulling Docker images"
+  policy      = data.aws_iam_policy_document.ecr_policy.json
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-ecr-policy"
+  })
+}
+
 # IAM policy for Bedrock access
 data "aws_iam_policy_document" "bedrock_policy" {
   statement {
     effect = "Allow"
     actions = [
       "bedrock:InvokeModel",
-      "bedrock:InvokeModelWithResponseStream"
+      "bedrock:InvokeModelWithResponseStream",
+      "bedrock:ListFoundationModels"
     ]
-    resources = ["*"]
+    resources = [
+      "arn:aws:bedrock:eu-central-1:${var.aws_account_id}:inference-profile/eu.amazon.nova-pro-v1:0",
+      "arn:aws:bedrock:eu-west-3:${var.aws_account_id}:inference-profile/eu.amazon.nova-pro-v1:0",
+      "arn:aws:bedrock:eu-west-1:${var.aws_account_id}:inference-profile/eu.amazon.nova-pro-v1:0",
+      "arn:aws:bedrock:eu-north-1:${var.aws_account_id}:inference-profile/eu.amazon.nova-pro-v1:0",
+      "arn:aws:bedrock:eu-west-3::foundation-model/amazon.nova-pro-v1:0",
+      "arn:aws:bedrock:eu-west-1::foundation-model/amazon.nova-pro-v1:0",
+      "arn:aws:bedrock:eu-central-1::foundation-model/amazon.nova-pro-v1:0",
+      "arn:aws:bedrock:eu-north-1::foundation-model/amazon.nova-pro-v1:0",
+      "arn:aws:bedrock:eu-central-1::foundation-model/amazon.nova-lite-v1:0",
+      "arn:aws:bedrock:eu-central-1::foundation-model/amazon.nova-micro-v1:0",
+      "arn:aws:bedrock:eu-central-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "arn:aws:bedrock:eu-central-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+      "arn:aws:bedrock:eu-central-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
+    ]
   }
 }
 
@@ -217,6 +256,12 @@ resource "aws_iam_role" "bastion_role" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-bastion-role"
   })
+}
+
+# Attach ECR policy to bastion role
+resource "aws_iam_role_policy_attachment" "bastion_ecr_policy" {
+  role       = aws_iam_role.bastion_role.name
+  policy_arn = aws_iam_policy.ecr_policy.arn
 }
 
 # Attach Bedrock policy to bastion role

@@ -1,9 +1,23 @@
 services:
   products-agent:
-    image: panchalravi/products-agent:${tag}
+    image: ${ECR_REGISTRY_URL}/${ECR_PRODUCTS_AGENT_REPO}:${tag}
     platform: ${platform}
     container_name: products-agent
     ports:
       - "8001:8001"
-    volumes:
-      - ./.env${target}:/app/.env
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL=INFO
+      - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID}
+      - ENTRA_CLIENT_SECRET=${ENTRA_CLIENT_SECRET}
+      - ENTRA_SCOPE=${ENTRA_SCOPE}
+      - ENTRA_TOKEN_URL=${ENTRA_TOKEN_URL}
+      - JWKS_URI=${JWKS_URI}
+      - JWT_ISSUER=${JWT_ISSUER}
+      - JWT_AUDIENCE=${JWT_AUDIENCE}
+      - PRODUCTS_MCP_SERVER_URL=http://products-mcp:8000/mcp
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-eu.amazon.nova-pro-v1:0}
+      - BEDROCK_TEMPERATURE=${BEDROCK_TEMPERATURE:-0.1}
+      - BEDROCK_REGION=${BEDROCK_REGION:-eu-central-1}
+      - USE_MOCK_MODEL=false

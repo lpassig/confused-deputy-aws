@@ -1,9 +1,11 @@
 services:
   products-web:
-    image: panchalravi/products-web:${tag}
+    image: ${ECR_REGISTRY_URL}/${ECR_PRODUCTS_WEB_REPO}:${tag}
     platform: ${platform}
     container_name: products-web
     ports:
       - "8501:8501"
-    volumes:
-      - ./.env${target}:/app/.env
+    env_file:
+      - .env
+    environment:
+      - SCOPE=api://docloudright.onmicrosoft.com/products-agent/Agent.Invoke offline_access openid profile

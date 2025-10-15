@@ -59,7 +59,14 @@ module "aws_documentdb" {
   tags = var.common_tags
 }
 
-# Module 4: Bastion Host
+# Module 4: ECR Repositories
+module "ecr" {
+  source      = "./modules/ecr"
+  name_prefix = local.name_prefix
+  tags        = var.common_tags
+}
+
+# Module 5: Bastion Host
 module "bastion" {
   source        = "./modules/bastion"
   name_prefix   = local.name_prefix
@@ -78,18 +85,20 @@ module "bastion" {
   docdb_username         = var.docdb_master_username
   docdb_password         = var.docdb_master_password
 
+  aws_account_id = data.aws_caller_identity.current.account_id
+
   tags = var.common_tags
 }
 
 
-# Module 5: Azure AD Applications
+# Module 6: Azure AD Applications
 module "azure_ad_app" {
   source           = "./modules/azure-ad-app"
   alb_https_url    = module.bastion.alb_https_url
   ad_user_password = var.ad_user_password
 }
 
-# Module 6: Vault Authentication and Database Configuration
+# Module 7: Vault Authentication and Database Configuration
 module "vault_auth" {
   source = "./modules/vault-auth"
 
