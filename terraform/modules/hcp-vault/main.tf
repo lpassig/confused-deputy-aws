@@ -30,23 +30,18 @@ resource "hcp_vault_cluster_admin_token" "main" {
 }
 
 locals {
-  my_email = split("/", data.aws_caller_identity.current.arn)[2]
+  # Extract username from ARN - handle both user and role ARN formats
+  arn_parts = split("/", data.aws_caller_identity.current.arn)
+  my_email = length(local.arn_parts) > 1 ? local.arn_parts[1] : "unknown-user"
 }
 
 
 data "aws_caller_identity" "current" {}
 
 data "aws_region" "current" {}
-data "aws_iam_policy" "demo_user_permissions_hcp_vault_log" {
-  name = "DemoUser"
-}
-
 resource "aws_iam_user" "hcp_vault_log_user" {
-  name                 = "demo-${local.my_email}-hcpvaultlog"
-  permissions_boundary = data.aws_iam_policy.demo_user_permissions_hcp_vault_log.arn
-  force_destroy        = true
-
-
+  name          = "demo-${local.my_email}-hcpvaultlog"
+  force_destroy = true
 }
 
 resource "aws_iam_user_policy_attachment" "hcp_vault_log" {
