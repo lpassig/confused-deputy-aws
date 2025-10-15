@@ -106,6 +106,35 @@ cp terraform.tfvars.example terraform.tfvars
 nano terraform.tfvars
 ```
 
+### 3. Configure Provider Settings
+
+**Important**: You must also update the `providers.tf` file to use your specific HCP organization and project details:
+
+```bash
+# Edit the providers configuration file
+nano providers.tf
+```
+
+**Required Changes in `providers.tf`:**
+
+1. **Update HCP Organization**: Uncomment and set your organization name:
+   ```hcl
+   data "hcp_organization" "myorg" {
+     name = "your-organization-name"  # Replace with your actual HCP org name
+   }
+   ```
+
+2. **Update HCP Project ID**: Set your specific project ID:
+   ```hcl
+   data "hcp_project" "myproject" {
+     project = "your-project-id"  # Replace with your actual HCP project ID
+   }
+   ```
+
+**Finding Your HCP Details:**
+- **Organization Name**: Found in your HCP dashboard URL or organization settings
+- **Project ID**: Found in your HCP project settings or URL
+
 **Required Variables to Configure:**
 
 ```hcl
@@ -137,7 +166,7 @@ azure_tenant_id="your-azure-tenant-id"
 ad_user_password="password-for-test-users!"
 ```
 
-### 3. Initialize Terraform
+### 4. Initialize Terraform
 
 ```bash
 # Initialize Terraform with all required providers
@@ -154,7 +183,7 @@ This will download and configure the following providers:
 - `hashicorp/random` - For random resource naming
 - `hashicorp/local` - For local file operations
 
-### 4. Plan Deployment
+### 5. Plan Deployment
 
 ```bash
 # Review the planned infrastructure changes
@@ -166,7 +195,7 @@ This command will show you:
 - Dependencies between resources  
 - Any potential issues with your configuration
 
-### 5. Deploy Infrastructure
+### 6. Deploy Infrastructure
 
 ```bash
 # Apply the Terraform configuration
