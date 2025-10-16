@@ -968,6 +968,432 @@ def validate_user_traceability(user_id: str):
 
 This comprehensive audit trail ensures that **every user action is completely traceable** from authentication through database access, providing complete visibility into user behavior and system security.
 
+## 🔍 HashiCorp Vault Audit Logging Integration
+
+### **Vault Audit Device Configuration**
+
+Based on HashiCorp's validated patterns for AI agent identity, we implement comprehensive Vault audit logging to provide enterprise-grade traceability.
+
+#### **Enable Vault Audit Devices**
+```bash
+# Enable file-based audit logging
+vault audit enable file file_path=/var/log/vault_audit.log
+
+# Enable syslog audit logging for centralized logging
+vault audit enable syslog tag="vault-audit" facility="AUTH"
+
+# Enable socket audit logging for real-time monitoring
+vault audit enable socket address="127.0.0.1:9001" socket_type="tcp"
+```
+
+#### **Vault Audit Log Structure**
+Vault audit logs are structured in JSON format with the following key fields:
+
+```json
+{
+  "time": "2024-01-15T10:30:20.123456789Z",
+  "type": "request",
+  "auth": {
+    "client_token": "hvs.CAESIJ...",
+    "accessor": "accessor-abc123",
+    "display_name": "jwt-user-12345",
+    "policies": ["readwrite-policy"],
+    "entity_id": "entity-user-12345",
+    "metadata": {
+      "role": "readwrite-role",
+      "username": "john.doe@company.com"
+    }
+  },
+  "request": {
+    "id": "req-xyz789",
+    "operation": "read",
+    "path": "database/creds/readwrite-role",
+    "data": {
+      "ttl": "1h"
+    }
+  },
+  "response": {
+    "data": {
+      "username": "v-token-readwrite-user12345-abc123",
+      "password": "A1b2C3d4E5f6...",
+      "lease_duration": 3600
+    }
+  }
+}
+```
+
+### **Enhanced Vault Client with Audit Integration**
+
+#### **Vault Client with Comprehensive Audit Logging**
+```python
+# products-mcp/vault_client.py
+import logging
+import json
+from datetime import datetime
+
+class VaultClient:
+    def __init__(self, vault_addr: str, audit_logger: logging.Logger):
+        self.vault_addr = vault_addr
+        self.audit_logger = audit_logger
+        self.vault = hvac.Client(url=vault_addr)
+    
+    async def get_mongodb_credentials(self, user_jwt: str) -> dict:
+        """Get user-specific database credentials with Vault audit integration"""
+        
+        # Extract user information
+        user_info = self.decode_jwt(user_jwt)
+        user_groups = user_info.get("groups", [])
+        
+        # Create audit context
+        audit_context = {
+            "user_id": user_info["sub"],
+            "user_name": user_info.get("name"),
+            "user_email": user_info.get("email"),
+            "user_groups": user_groups,
+            "request_id": generate_request_id(),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # Log Vault authentication attempt
+        self.audit_logger.info({
+            "event": "vault_auth_attempt",
+            "vault_audit_type": "request",
+            "vault_path": "auth/jwt/login",
+            **audit_context
+        })
+        
+        try:
+            # Authenticate with Vault using user JWT
+            vault_response = await self.vault.auth.jwt(user_jwt)
+            vault_token = vault_response["auth"]["client_token"]
+            vault_accessor = vault_response["auth"]["accessor"]
+            
+            # Log successful Vault authentication
+            self.audit_logger.info({
+                "event": "vault_auth_success",
+                "vault_audit_type": "response",
+                "vault_token_accessor": vault_accessor,
+                "vault_token_ttl": vault_response["auth"]["lease_duration"],
+                "vault_policies": vault_response["auth"]["policies"],
+                **audit_context
+            })
+            
+            # Determine user role based on groups
+            if "Products.ReadWrite" in user_groups:
+                role = "readwrite-role"
+                permissions = ["read", "create", "update", "delete"]
+            elif "Products.ReadOnly" in user_groups:
+                role = "readonly-role"
+                permissions = ["read"]
+            else:
+                raise PermissionError("User has no product access")
+            
+            # Log role determination
+            self.audit_logger.info({
+                "event": "user_role_determined",
+                "vault_role": role,
+                "vault_permissions": permissions,
+                **audit_context
+            })
+            
+            # Generate dynamic credentials with audit logging
+            creds_path = f"database/creds/{role}"
+            
+            # Log credential request
+            self.audit_logger.info({
+                "event": "vault_credential_request",
+                "vault_audit_type": "request",
+                "vault_path": creds_path,
+                "vault_operation": "read",
+                **audit_context
+            })
+            
+            # Generate credentials
+            creds_response = await self.vault.read(creds_path)
+            
+            # Log credential generation
+            self.audit_logger.info({
+                "event": "vault_credential_generated",
+                "vault_audit_type": "response",
+                "vault_path": creds_path,
+                "vault_username": creds_response["username"],
+                "vault_ttl": creds_response["lease_duration"],
+                "vault_lease_id": creds_response["lease_id"],
+                **audit_context
+            })
+            
+            return {
+                "username": creds_response["username"],
+                "password": creds_response["password"],
+                "ttl": creds_response["lease_duration"],
+                "lease_id": creds_response["lease_id"],
+                "role": role,
+                "permissions": permissions,
+                "vault_accessor": vault_accessor
+            }
+            
+        except Exception as e:
+            # Log Vault error with full context
+            self.audit_logger.error({
+                "event": "vault_operation_failed",
+                "vault_error": str(e),
+                **audit_context
+            })
+            raise
+```
+
+### **Vault Audit Log Analysis**
+
+#### **Query Vault Audit Logs for User Traceability**
+```python
+# Vault audit log analysis functions
+
+def analyze_vault_audit_logs(user_id: str, time_range: str = "24h"):
+    """Analyze Vault audit logs for specific user"""
+    
+    # Query Vault audit logs
+    vault_logs = query_vault_audit_logs({
+        "auth.metadata.user_id": user_id,
+        "time": {"$gte": get_time_threshold(time_range)}
+    })
+    
+    # Categorize events
+    auth_events = [log for log in vault_logs if log["path"].startswith("auth/")]
+    credential_events = [log for log in vault_logs if "database/creds" in log["path"]]
+    policy_events = [log for log in vault_logs if "sys/policies" in log["path"]]
+    
+    return {
+        "user_id": user_id,
+        "time_range": time_range,
+        "total_events": len(vault_logs),
+        "authentication_events": auth_events,
+        "credential_events": credential_events,
+        "policy_events": policy_events,
+        "unique_vault_accessors": list(set(log["auth"]["accessor"] for log in vault_logs)),
+        "unique_lease_ids": list(set(log["response"]["data"]["lease_id"] for log in vault_logs if "lease_id" in log["response"]["data"]))
+    }
+
+def track_credential_lifecycle(lease_id: str):
+    """Track complete lifecycle of a Vault credential"""
+    
+    # Find credential generation
+    generation_log = query_vault_audit_logs({
+        "response.data.lease_id": lease_id,
+        "type": "response"
+    })
+    
+    # Find credential usage (if any)
+    usage_logs = query_vault_audit_logs({
+        "auth.metadata.lease_id": lease_id
+    })
+    
+    # Find credential renewal (if any)
+    renewal_logs = query_vault_audit_logs({
+        "request.path": f"sys/leases/renew/{lease_id}"
+    })
+    
+    # Find credential revocation (if any)
+    revocation_logs = query_vault_audit_logs({
+        "request.path": f"sys/leases/revoke/{lease_id}"
+    })
+    
+    return {
+        "lease_id": lease_id,
+        "generation": generation_log[0] if generation_log else None,
+        "usage_events": usage_logs,
+        "renewal_events": renewal_logs,
+        "revocation_events": revocation_logs,
+        "lifecycle_complete": len(revocation_logs) > 0
+    }
+```
+
+### **Vault Audit Log Integration with Application Logs**
+
+#### **Unified Audit Trail with Vault Integration**
+```python
+# Unified audit trail combining application and Vault logs
+
+def get_unified_audit_trail(user_id: str, session_id: str = None):
+    """Get unified audit trail combining application and Vault logs"""
+    
+    # Get application audit logs
+    app_logs = get_application_audit_logs(user_id, session_id)
+    
+    # Get Vault audit logs
+    vault_logs = analyze_vault_audit_logs(user_id)
+    
+    # Correlate logs by request_id and timestamp
+    correlated_logs = correlate_audit_logs(app_logs, vault_logs)
+    
+    return {
+        "user_id": user_id,
+        "session_id": session_id,
+        "application_events": app_logs,
+        "vault_events": vault_logs,
+        "correlated_events": correlated_logs,
+        "traceability_score": calculate_traceability_score(correlated_logs)
+    }
+
+def correlate_audit_logs(app_logs: list, vault_logs: list) -> list:
+    """Correlate application and Vault audit logs"""
+    
+    correlated = []
+    
+    for app_log in app_logs:
+        # Find matching Vault logs by timestamp and user
+        matching_vault_logs = [
+            vault_log for vault_log in vault_logs
+            if abs((datetime.fromisoformat(app_log["timestamp"]) - 
+                   datetime.fromisoformat(vault_log["time"])).total_seconds()) < 5
+            and vault_log["auth"]["metadata"]["user_id"] == app_log["user_id"]
+        ]
+        
+        correlated.append({
+            "application_event": app_log,
+            "vault_events": matching_vault_logs,
+            "correlation_confidence": len(matching_vault_logs) / max(1, len(app_logs))
+        })
+    
+    return correlated
+```
+
+### **Vault Audit Log Monitoring and Alerting**
+
+#### **Real-time Vault Audit Monitoring**
+```python
+# Real-time monitoring of Vault audit logs
+
+class VaultAuditMonitor:
+    def __init__(self, vault_addr: str, alert_webhook: str):
+        self.vault_addr = vault_addr
+        self.alert_webhook = alert_webhook
+        self.suspicious_patterns = [
+            "multiple_failed_auth_attempts",
+            "unusual_credential_generation",
+            "privilege_escalation_attempts",
+            "off_hours_access"
+        ]
+    
+    def monitor_audit_logs(self):
+        """Monitor Vault audit logs in real-time"""
+        
+        # Stream Vault audit logs
+        for log_entry in self.stream_vault_audit_logs():
+            # Analyze log entry
+            risk_score = self.analyze_log_entry(log_entry)
+            
+            if risk_score > 0.7:
+                self.send_alert(log_entry, risk_score)
+            
+            # Update user session tracking
+            self.update_user_session_tracking(log_entry)
+    
+    def analyze_log_entry(self, log_entry: dict) -> float:
+        """Analyze log entry for suspicious patterns"""
+        
+        risk_score = 0.0
+        
+        # Check for multiple failed authentication attempts
+        if self.check_failed_auth_pattern(log_entry):
+            risk_score += 0.3
+        
+        # Check for unusual credential generation patterns
+        if self.check_unusual_credential_pattern(log_entry):
+            risk_score += 0.4
+        
+        # Check for privilege escalation attempts
+        if self.check_privilege_escalation_pattern(log_entry):
+            risk_score += 0.5
+        
+        # Check for off-hours access
+        if self.check_off_hours_access(log_entry):
+            risk_score += 0.2
+        
+        return min(risk_score, 1.0)
+    
+    def send_alert(self, log_entry: dict, risk_score: float):
+        """Send alert for suspicious activity"""
+        
+        alert = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "risk_score": risk_score,
+            "user_id": log_entry["auth"]["metadata"]["user_id"],
+            "vault_path": log_entry["request"]["path"],
+            "vault_operation": log_entry["request"]["operation"],
+            "log_entry": log_entry
+        }
+        
+        # Send to alerting system
+        requests.post(self.alert_webhook, json=alert)
+```
+
+### **Vault Audit Log Compliance Reporting**
+
+#### **Generate Compliance Reports from Vault Audit Logs**
+```python
+# Compliance reporting based on Vault audit logs
+
+def generate_compliance_report(start_date: str, end_date: str) -> dict:
+    """Generate compliance report from Vault audit logs"""
+    
+    # Query Vault audit logs for date range
+    audit_logs = query_vault_audit_logs({
+        "time": {
+            "$gte": start_date,
+            "$lte": end_date
+        }
+    })
+    
+    # Analyze compliance metrics
+    total_events = len(audit_logs)
+    unique_users = len(set(log["auth"]["metadata"]["user_id"] for log in audit_logs))
+    credential_generations = len([log for log in audit_logs if "database/creds" in log["path"]])
+    failed_auth_attempts = len([log for log in audit_logs if log["response"]["errors"]])
+    
+    # Generate compliance report
+    return {
+        "report_period": {
+            "start_date": start_date,
+            "end_date": end_date
+        },
+        "summary": {
+            "total_events": total_events,
+            "unique_users": unique_users,
+            "credential_generations": credential_generations,
+            "failed_auth_attempts": failed_auth_attempts,
+            "success_rate": (total_events - failed_auth_attempts) / total_events if total_events > 0 else 0
+        },
+        "user_activity": generate_user_activity_summary(audit_logs),
+        "credential_usage": generate_credential_usage_summary(audit_logs),
+        "security_events": generate_security_events_summary(audit_logs),
+        "compliance_status": "COMPLIANT" if failed_auth_attempts < total_events * 0.05 else "REVIEW_REQUIRED"
+    }
+```
+
+### **Benefits of Vault Audit Integration**
+
+#### **1. Enterprise-Grade Audit Trail**
+- **Complete Vault Operations**: Every Vault operation is logged with full context
+- **Credential Lifecycle**: Track generation, usage, renewal, and revocation of credentials
+- **Policy Changes**: Monitor all policy modifications and access control changes
+
+#### **2. Advanced Security Monitoring**
+- **Real-time Alerts**: Immediate notification of suspicious activities
+- **Risk Scoring**: Automated risk assessment of user activities
+- **Anomaly Detection**: Identify unusual patterns in credential usage
+
+#### **3. Regulatory Compliance**
+- **SOX Compliance**: Complete audit trail for financial data access
+- **GDPR Compliance**: User data access tracking and reporting
+- **HIPAA Compliance**: Healthcare data access monitoring
+
+#### **4. Operational Excellence**
+- **Performance Monitoring**: Track Vault operation performance
+- **Capacity Planning**: Monitor credential usage patterns
+- **Incident Response**: Detailed logs for security investigations
+
+This integration with HashiCorp Vault's audit logging capabilities provides enterprise-grade traceability and monitoring, ensuring complete visibility into all user activities and system operations.
+
 ## 🏗️ Architecture Overview
 
 ```
