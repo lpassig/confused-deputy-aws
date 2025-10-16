@@ -229,3 +229,34 @@ output "alb_https_url" {
   description = "HTTPS URL for the Application Load Balancer"
   value       = module.bastion.alb_https_url
 }
+
+output "bastion_target_group_arn" {
+  description = "ARN of the ALB target group"
+  value       = module.bastion.target_group_arn
+}
+
+output "bastion_security_group_id" {
+  description = "ID of the bastion security group"
+  value       = module.bastion.security_group_id
+}
+
+# ECR outputs
+output "ecr_products_web_repository_url" {
+  description = "URL of the products-web ECR repository"
+  value       = module.ecr.products_web_repository_url
+}
+
+output "ecr_products_agent_repository_url" {
+  description = "URL of the products-agent ECR repository"
+  value       = module.ecr.products_agent_repository_url
+}
+
+output "ecr_products_mcp_repository_url" {
+  description = "URL of the products-mcp ECR repository"
+  value       = module.ecr.products_mcp_repository_url
+}
+
+output "ecr_registry_url" {
+  description = "Base URL of the ECR registry"
+  value       = module.ecr.ecr_registry_url
+}

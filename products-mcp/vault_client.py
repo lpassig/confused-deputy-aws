@@ -174,7 +174,7 @@ class VaultClient:
             auth_response = self.client.auth.jwt.jwt_login(
                 role="default",  # Role name should be configured in Vault
                 jwt=jwt_token,
-                path="jwt",
+                path="azure-jwt",
             )
 
             # Extract auth token and its TTL

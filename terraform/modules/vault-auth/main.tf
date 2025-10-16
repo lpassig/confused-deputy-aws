@@ -22,9 +22,10 @@ EOF
 }
 
 resource "vault_database_secret_backend_connection" "docdb" {
-  backend       = vault_mount.db.path
-  name          = "docdb"
-  allowed_roles = ["readonly,readwrite"]
+  backend           = vault_mount.db.path
+  name              = "docdb"
+  allowed_roles     = ["readonly,readwrite"]
+  verify_connection = false
 
   mongodb {
     connection_url = "mongodb://{{username}}:{{password}}@${var.docdb_cluster_endpoint}:27017/admin"
@@ -58,9 +59,9 @@ resource "vault_database_secret_backend_role" "readwrite" {
 # JWT Auth Mount
 resource "vault_jwt_auth_backend" "jwt" {
   description        = "JWT auth backend for OIDC authentication"
-  path               = "jwt"
-  oidc_discovery_url = var.jwt_oidc_discovery_url
+  path               = "azure-jwt"
   bound_issuer       = var.jwt_bound_issuer
+  jwks_url           = "${replace(var.jwt_bound_issuer, "/v2.0", "")}/discovery/v2.0/keys"
 }
 
 # JWT Auth Role
@@ -76,7 +77,7 @@ resource "vault_jwt_auth_backend_role" "default" {
     "name" = "name"
     "aud"  = "aud"
   }
-
+  token_policies = [vault_policy.readonly.name, vault_policy.readwrite.name]
 }
 
 # External Identity Groups

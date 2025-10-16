@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.getLevelNamesMapping().get(LOG_LEVEL))
 
-# Create FastMCP server instance
+# Create FastMCP server instance - use fixed permissive JWT verifier
 mcp = FastMCP("products-mcp", version="1.0.0", auth=get_jwt_verifier())
 
 # Initialize product service

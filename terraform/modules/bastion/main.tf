@@ -52,6 +52,14 @@ resource "aws_security_group" "bastion" {
     description = "SSH access from internet"
   }
 
+  ingress {
+    from_port   = 8501
+    to_port     = 8501
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "HTTP access from ALB on port 8501"
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -91,7 +99,7 @@ resource "aws_instance" "bastion" {
 
   associate_public_ip_address = true
 
-  user_data = base64encode(templatefile("${path.module}/user-data.sh", {
+  user_data_base64 = base64encode(templatefile("${path.module}/user-data.sh", {
     vault_public_endpoint_url = var.vault_public_endpoint_url
     vault_admin_token         = var.vault_admin_token
     docdb_cluster_endpoint    = var.docdb_cluster_endpoint

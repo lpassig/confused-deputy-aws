@@ -53,3 +53,8 @@ output "alb_https_url" {
   description = "HTTPS URL for the Application Load Balancer"
   value       = "https://${aws_lb.main.dns_name}"
 }
+
+output "target_group_arn" {
+  description = "ARN of the ALB target group"
+  value       = aws_lb_target_group.bastion_tg.arn
+}

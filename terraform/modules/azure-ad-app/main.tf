@@ -185,6 +185,9 @@ resource "azuread_service_principal_delegated_permission_grant" "products_mcp" {
 # Generate UUIDs for Products Agent API scopes
 resource "random_uuid" "products_agent_invoke_scope_id" {}
 
+# Generate UUID for Products Web API scope
+resource "random_uuid" "products_web_access_scope_id" {}
+
 # Products Agent Application
 resource "azuread_application" "products_agent" {
   display_name     = "ProductsAgent"
@@ -325,6 +328,23 @@ resource "azuread_application" "products_web" {
 
   # Configure group membership claims
   group_membership_claims = var.include_groups_claim ? ["SecurityGroup"] : []
+
+  # API configuration for ProductsWeb delegated scope
+  api {
+    mapped_claims_enabled          = false
+    requested_access_token_version = 2
+
+    oauth2_permission_scope {
+      admin_consent_description  = "Allow the application to access ProductsWeb on behalf of the signed-in user."
+      admin_consent_display_name = "Access ProductsWeb"
+      enabled                    = true
+      id                         = random_uuid.products_web_access_scope_id.result
+      type                       = "User"
+      user_consent_description   = "Allow the application to access ProductsWeb on your behalf."
+      user_consent_display_name  = "Access ProductsWeb"
+      value                      = "access"
+    }
+  }
 
   required_resource_access {
     resource_app_id = azuread_application.products_agent.client_id

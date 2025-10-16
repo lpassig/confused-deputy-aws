@@ -44,7 +44,7 @@ class Config(BaseSettings):
     # entra_tenant_id: str = Field(default=None, description="Entra tenant ID")
 
     # Vault settings
-    vault_addr: str = Field(default=None, description="Vault address")
+    vault_addr: Optional[str] = Field(default=None, description="Vault address")
 
     # Log level
     log_level: str = Field(default="INFO", description="Logging level")

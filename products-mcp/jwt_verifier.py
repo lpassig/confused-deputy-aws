@@ -1,7 +1,11 @@
 import logging
 import os
-from typing import Dict
+import time
+from typing import Dict, List, Optional, Union
 import jwt
+import httpx
+from jwt import PyJWKClient
+from datetime import datetime, timezone, timedelta
 
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from config import get_config
@@ -15,30 +19,59 @@ logger.setLevel(logging.getLevelNamesMapping().get(LOG_LEVEL))
 
 
 def get_jwt_verifier() -> JWTVerifier:
-    """Create JWT verifier from environment variables.
+    """Create JWT verifier with debug logging to identify OBO token rejection issues.
 
     Returns:
         JWTVerifier: Configured JWT verifier instance
     """
-    jwks_uri = os.getenv("JWKS_URI")
-    jwt_issuer = os.getenv("JWT_ISSUER")
-    jwt_audience = os.getenv("JWT_AUDIENCE")
+    logger.info("Creating debug JWT verifier for OBO flow testing")
 
-    if not all([jwks_uri, jwt_issuer, jwt_audience]):
-        raise ValueError(
-            "Missing required JWT configuration: JWKS_URI, JWT_ISSUER, JWT_AUDIENCE must be set in environment"
-        )
+    # Create a debug JWT verifier that logs before calling parent verification
+    class DebugJWTVerifier(JWTVerifier):
+        def __init__(self, *args, **kwargs):
+            logger.info("DebugJWTVerifier __init__ called")
+            # Initialize parent class properly to ensure FastMCP routes work
+            super().__init__(
+                jwks_uri=os.getenv("JWKS_URI"),
+                issuer=os.getenv("JWT_ISSUER"),
+                audience=os.getenv("JWT_AUDIENCE"),
+                algorithm="RS256"
+            )
+            logger.info(f"DebugJWTVerifier initialized with:")
+            logger.info(f"  JWKS_URI: {self.jwks_uri}")
+            logger.info(f"  Issuer: {self.issuer}")
+            logger.info(f"  Audience: {self.audience}")
+        
+        def verify_token(self, token: str) -> Dict:
+            """Override to add detailed logging before calling parent verification."""
+            try:
+                logger.info(f"DebugJWTVerifier.verify_token called with token: {token[:50]}...")
+                
+                # Decode without verification to see the payload
+                unverified = jwt.decode(token, options={"verify_signature": False})
+                logger.info(f"Token claims:")
+                logger.info(f"  aud: {unverified.get('aud')}")
+                logger.info(f"  iss: {unverified.get('iss')}")
+                logger.info(f"  scp: {unverified.get('scp')}")
+                logger.info(f"  roles: {unverified.get('roles')}")
+                logger.info(f"  ver: {unverified.get('ver')}")
+                logger.info(f"Expected values:")
+                logger.info(f"  aud: {self.audience}")
+                logger.info(f"  iss: {self.issuer}")
+                
+                # Call parent to see exact error
+                logger.info("Calling parent verify_token...")
+                result = super().verify_token(token)
+                logger.info("✅ Token verification successful!")
+                return result
+                
+            except Exception as e:
+                logger.error(f"❌ JWT verification failed: {type(e).__name__}: {e}")
+                raise
+        
+        # Let parent handle get_routes() and get_middleware()
 
-    logger.info(f"Configuring JWT verifier with issuer: {jwt_issuer}")
-    logger.info(f"JWT audience: {jwt_audience}")
-    logger.info(f"JWKS URI: {jwks_uri}")
-
-    return JWTVerifier(
-        jwks_uri=jwks_uri,
-        issuer=jwt_issuer,
-        audience=jwt_audience,
-        algorithm="RS256",  # Standard for Azure AD / Microsoft Entra ID
-    )
+    return DebugJWTVerifier()
 
 
 async def get_jwt_token_from_header(headers: dict) -> str:

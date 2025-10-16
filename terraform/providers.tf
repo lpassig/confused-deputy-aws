@@ -6,11 +6,11 @@ provider "hcp" {
 }
 
 data "hcp_organization" "myorg" {
-  # name = "ravi-panchal-org"
+  # name = "lennart-org"
 }
 
 data "hcp_project" "myproject" {
-  project = "6f656329-aa6d-4777-b0e1-68927dac2aec"
+  project = "ed42395a-03fc-440e-baf7-be99c951230e"
 }
 
 provider "aws" {

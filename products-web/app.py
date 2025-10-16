@@ -346,20 +346,27 @@ def render_auth_status_panel():
             with col1:
                 if st.button("🔄 Refresh", use_container_width=True):
                     try:
-                        oauth2 = OAuth2Component(
-                            client_id=CLIENT_ID,
-                            client_secret=CLIENT_SECRET,
-                            authorize_endpoint=AUTHORIZE_URL,
-                            token_endpoint=TOKEN_URL,
-                            refresh_token_endpoint=REFRESH_TOKEN_URL,
-                            revoke_token_endpoint=REVOKE_TOKEN_URL,
-                        )
-                        refreshed_token = oauth2.refresh_token(token)
-                        st.session_state.token = refreshed_token
-                        st.success("Token refreshed!")
-                        st.rerun()
+                        if 'refresh_token' in token:
+                            refresh_data = {
+                                'client_id': CLIENT_ID,
+                                'client_secret': CLIENT_SECRET,
+                                'refresh_token': token['refresh_token'],
+                                'grant_type': 'refresh_token'
+                            }
+                            
+                            response = requests.post(REFRESH_TOKEN_URL, data=refresh_data)
+                            
+                            if response.status_code == 200:
+                                refreshed_token = response.json()
+                                st.session_state.token = refreshed_token
+                                st.success("Token refreshed!")
+                                st.rerun()
+                            else:
+                                st.error(f"Token refresh failed: {response.text}")
+                        else:
+                            st.error("No refresh token available")
                     except Exception as e:
-                        st.error(f"Refresh failed: {str(e)}")
+                        st.error(f"Token refresh failed: {str(e)}")
 
             with col2:
                 if st.button("🚪 Logout", use_container_width=True):
@@ -580,31 +587,69 @@ def main():
             st.write(f"**Scopes:** {SCOPE}")
             st.write(f"**Products API:** {PRODUCTS_AGENT_URL}")
 
-        # Create OAuth2Component instance
-        oauth2 = OAuth2Component(
-            client_id=CLIENT_ID,
-            client_secret=CLIENT_SECRET,
-            authorize_endpoint=AUTHORIZE_URL,
-            token_endpoint=TOKEN_URL,
-            refresh_token_endpoint=REFRESH_TOKEN_URL,
-            revoke_token_endpoint=REVOKE_TOKEN_URL,
-        )
-
-        # Authorization button
-        result = oauth2.authorize_button(
-            "Login with Microsoft",
-            REDIRECT_URI,
-            SCOPE,
-            height=600,
-            width=500,
-            key="auth_button",
-            use_container_width=True,
-        )
-
-        if result and "token" in result:
-            st.session_state.token = result.get("token")
-            st.success("Successfully authenticated!")
-            st.rerun()
+        # Generate authorization URL with forced consent
+        import urllib.parse
+        
+        params = {
+            'client_id': CLIENT_ID,
+            'response_type': 'code',
+            'redirect_uri': REDIRECT_URI,
+            'scope': SCOPE,
+            'response_mode': 'query',
+            'state': 'streamlit-oauth',
+            'prompt': 'consent'  # Force consent screen
+        }
+        
+        query_string = urllib.parse.urlencode(params)
+        auth_url = f"{AUTHORIZE_URL}?{query_string}"
+        
+        st.markdown(f"""
+        <div style="text-align: center; margin: 2rem 0;">
+            <a href="{auth_url}" target="_blank" style="
+                display: inline-block;
+                background-color: #0078d4;
+                color: white;
+                padding: 12px 24px;
+                text-decoration: none;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 16px;
+            ">
+                🔐 Login with Microsoft
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.info("Click the button above to login. After authentication, you'll be redirected back to this page.")
+        
+        # Handle OAuth callback
+        if 'code' in st.query_params:
+            code = st.query_params['code']
+            state = st.query_params.get('state', '')
+            
+            if state == 'streamlit-oauth':
+                try:
+                    # Exchange authorization code for token
+                    token_data = {
+                        'client_id': CLIENT_ID,
+                        'client_secret': CLIENT_SECRET,
+                        'code': code,
+                        'redirect_uri': REDIRECT_URI,
+                        'grant_type': 'authorization_code'
+                    }
+                    
+                    response = requests.post(TOKEN_URL, data=token_data)
+                    
+                    if response.status_code == 200:
+                        token_response = response.json()
+                        st.session_state.token = token_response
+                        st.success("Successfully authenticated!")
+                        st.rerun()
+                    else:
+                        st.error(f"Authentication failed: {response.text}")
+                        
+                except Exception as e:
+                    st.error(f"Error during authentication: {str(e)}")
     else:
         # User is logged in - show main interface
         render_auth_status_panel()
