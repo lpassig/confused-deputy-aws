@@ -358,6 +358,616 @@ bob_request   → bob_jwt   → readwrite_db_creds → full_access
 
 This identity propagation approach ensures that **every action in the system is traceable to a specific user** and that **users only get the permissions they're authorized for**, completely eliminating the Confused Deputy Problem.
 
+## 🔍 User Session Traceability and Validation
+
+### **Complete Audit Trail: From Authentication to Database**
+
+This section demonstrates how to validate and trace user sessions through the entire authentication flow and database operations, showing the complete audit trail from user login to database access.
+
+### **Step 1: User Authentication Validation**
+
+#### **Frontend Authentication Logging**
+```python
+# products-web/app.py
+import logging
+from datetime import datetime
+
+def authenticate_user():
+    """Authenticate user and log session details"""
+    try:
+        # Get OAuth token from Microsoft Entra ID
+        user_jwt = get_oauth_token()
+        
+        # Decode JWT to extract user information
+        user_info = decode_jwt(user_jwt)
+        
+        # Log user authentication
+        logging.info({
+            "event": "user_authenticated",
+            "user_id": user_info["sub"],
+            "user_name": user_info.get("name"),
+            "user_email": user_info.get("email"),
+            "user_groups": user_info.get("groups", []),
+            "session_id": st.session_state.get("session_id"),
+            "timestamp": datetime.utcnow().isoformat(),
+            "ip_address": get_client_ip(),
+            "user_agent": st.session_state.get("user_agent")
+        })
+        
+        # Store in session for traceability
+        st.session_state.user_jwt = user_jwt
+        st.session_state.user_info = user_info
+        st.session_state.session_id = generate_session_id()
+        
+        return user_jwt
+        
+    except Exception as e:
+        logging.error({
+            "event": "authentication_failed",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat(),
+            "ip_address": get_client_ip()
+        })
+        raise
+```
+
+#### **Session Tracking**
+```python
+# products-web/app.py
+def track_user_session():
+    """Track user session for audit purposes"""
+    session_data = {
+        "session_id": st.session_state.session_id,
+        "user_id": st.session_state.user_info["sub"],
+        "user_name": st.session_state.user_info.get("name"),
+        "user_email": st.session_state.user_info.get("email"),
+        "login_time": datetime.utcnow().isoformat(),
+        "last_activity": datetime.utcnow().isoformat(),
+        "ip_address": get_client_ip(),
+        "user_agent": st.session_state.get("user_agent")
+    }
+    
+    # Store session data for audit trail
+    store_session_data(session_data)
+    
+    return session_data
+```
+
+### **Step 2: Agent Request Validation and Logging**
+
+#### **Agent Request Logging**
+```python
+# products-agent/main.py
+import logging
+from datetime import datetime
+
+@app.post("/agent/invoke")
+async def invoke_agent(request: AgentRequest, authorization: str = Header(None)):
+    """Process agent request with complete audit logging"""
+    
+    # Extract and validate user JWT
+    user_jwt = extract_jwt_from_header(authorization)
+    user_info = validate_jwt(user_jwt)
+    
+    # Log agent request
+    request_log = {
+        "event": "agent_request_received",
+        "request_id": generate_request_id(),
+        "user_id": user_info["sub"],
+        "user_name": user_info.get("name"),
+        "user_email": user_info.get("email"),
+        "user_groups": user_info.get("groups", []),
+        "prompt": request.prompt,
+        "timestamp": datetime.utcnow().isoformat(),
+        "ip_address": get_client_ip(),
+        "session_id": extract_session_id_from_jwt(user_jwt)
+    }
+    
+    logging.info(request_log)
+    
+    try:
+        # Exchange user JWT for agent JWT (OBO flow)
+        agent_jwt = await token_service.exchange_token(user_jwt)
+        
+        # Log OBO exchange
+        logging.info({
+            "event": "obo_token_exchange",
+            "request_id": request_log["request_id"],
+            "user_id": user_info["sub"],
+            "agent_jwt_sub": decode_jwt(agent_jwt)["sub"],
+            "agent_jwt_oid": decode_jwt(agent_jwt)["oid"],  # Original user ID
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        # Process request with Bedrock
+        response = await process_with_bedrock(request.prompt, agent_jwt)
+        
+        # Log successful response
+        logging.info({
+            "event": "agent_response_sent",
+            "request_id": request_log["request_id"],
+            "user_id": user_info["sub"],
+            "response_length": len(response),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        return {"response": response, "request_id": request_log["request_id"]}
+        
+    except Exception as e:
+        # Log error with full context
+        logging.error({
+            "event": "agent_request_failed",
+            "request_id": request_log["request_id"],
+            "user_id": user_info["sub"],
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        raise
+```
+
+### **Step 3: MCP Server Database Access Validation**
+
+#### **MCP Server Request Logging**
+```python
+# products-mcp/server.py
+import logging
+from datetime import datetime
+
+@mcp.tool()
+async def list_products(user_jwt: str) -> str:
+    """List products with complete audit trail"""
+    
+    # Extract user information from JWT
+    user_info = validate_jwt(user_jwt)
+    
+    # Generate request ID for traceability
+    request_id = generate_request_id()
+    
+    # Log MCP request
+    mcp_log = {
+        "event": "mcp_request_received",
+        "request_id": request_id,
+        "tool": "list_products",
+        "user_id": user_info["sub"],
+        "user_name": user_info.get("name"),
+        "user_email": user_info.get("email"),
+        "user_groups": user_info.get("groups", []),
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    logging.info(mcp_log)
+    
+    try:
+        # Get user-specific database credentials from Vault
+        vault_creds = await vault_client.get_mongodb_credentials(user_jwt)
+        
+        # Log Vault credential generation
+        logging.info({
+            "event": "vault_credentials_generated",
+            "request_id": request_id,
+            "user_id": user_info["sub"],
+            "vault_username": vault_creds["username"],
+            "vault_ttl": vault_creds["ttl"],
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        # Connect to database with user's credentials
+        db_client = await db_manager.get_mongo_client(user_jwt)
+        
+        # Log database connection
+        logging.info({
+            "event": "database_connected",
+            "request_id": request_id,
+            "user_id": user_info["sub"],
+            "db_username": vault_creds["username"],
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        # Execute database query
+        products = await db_client.products.find().to_list(length=None)
+        
+        # Log database query execution
+        logging.info({
+            "event": "database_query_executed",
+            "request_id": request_id,
+            "user_id": user_info["sub"],
+            "query": "products.find()",
+            "result_count": len(products),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        return format_products_response(products)
+        
+    except Exception as e:
+        # Log error with full context
+        logging.error({
+            "event": "mcp_request_failed",
+            "request_id": request_id,
+            "user_id": user_info["sub"],
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        raise
+```
+
+### **Step 4: Vault Credential Generation and Mapping**
+
+#### **Vault Client with Detailed Logging**
+```python
+# products-mcp/vault_client.py
+import logging
+from datetime import datetime
+
+class VaultClient:
+    async def get_mongodb_credentials(self, user_jwt: str) -> dict:
+        """Get user-specific database credentials with complete audit trail"""
+        
+        # Extract user information
+        user_info = self.decode_jwt(user_jwt)
+        user_groups = user_info.get("groups", [])
+        
+        # Log Vault authentication attempt
+        vault_log = {
+            "event": "vault_auth_attempt",
+            "user_id": user_info["sub"],
+            "user_name": user_info.get("name"),
+            "user_email": user_info.get("email"),
+            "user_groups": user_groups,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        logging.info(vault_log)
+        
+        try:
+            # Authenticate with Vault using user JWT
+            vault_token = await self.vault.auth.jwt(user_jwt)
+            
+            # Log successful Vault authentication
+            logging.info({
+                "event": "vault_auth_success",
+                "user_id": user_info["sub"],
+                "vault_token_ttl": vault_token.get("lease_duration"),
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+            # Determine user role based on groups
+            if "Products.ReadWrite" in user_groups:
+                role = "readwrite-role"
+                permissions = ["read", "create", "update", "delete"]
+            elif "Products.ReadOnly" in user_groups:
+                role = "readonly-role"
+                permissions = ["read"]
+            else:
+                raise PermissionError("User has no product access")
+            
+            # Log role determination
+            logging.info({
+                "event": "user_role_determined",
+                "user_id": user_info["sub"],
+                "role": role,
+                "permissions": permissions,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+            # Generate dynamic credentials
+            creds_path = f"database/creds/{role}"
+            creds_response = await self.vault.read(creds_path)
+            
+            # Log credential generation
+            logging.info({
+                "event": "dynamic_credentials_generated",
+                "user_id": user_info["sub"],
+                "role": role,
+                "vault_username": creds_response["username"],
+                "vault_ttl": creds_response["lease_duration"],
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+            return {
+                "username": creds_response["username"],
+                "password": creds_response["password"],
+                "ttl": creds_response["lease_duration"],
+                "role": role,
+                "permissions": permissions
+            }
+            
+        except Exception as e:
+            # Log Vault error
+            logging.error({
+                "event": "vault_auth_failed",
+                "user_id": user_info["sub"],
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            raise
+```
+
+### **Step 5: Database Operation Audit Trail**
+
+#### **Database Manager with Session Tracking**
+```python
+# products-mcp/db_utils.py
+import logging
+from datetime import datetime
+
+class DatabaseManager:
+    async def get_mongo_client(self, user_jwt: str) -> MongoClient:
+        """Get database client with user-specific credentials and audit trail"""
+        
+        # Get user information
+        user_info = self.decode_jwt(user_jwt)
+        
+        # Get Vault credentials
+        vault_creds = await self.vault_client.get_mongodb_credentials(user_jwt)
+        
+        # Log database connection attempt
+        logging.info({
+            "event": "database_connection_attempt",
+            "user_id": user_info["sub"],
+            "user_name": user_info.get("name"),
+            "user_email": user_info.get("email"),
+            "db_username": vault_creds["username"],
+            "db_role": vault_creds["role"],
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        try:
+            # Create database client with user credentials
+            client = MongoClient(
+                host=self.config.db_host,
+                port=self.config.db_port,
+                username=vault_creds["username"],
+                password=vault_creds["password"],
+                authSource="admin"
+            )
+            
+            # Test connection
+            await client.admin.command('ping')
+            
+            # Log successful connection
+            logging.info({
+                "event": "database_connected_successfully",
+                "user_id": user_info["sub"],
+                "db_username": vault_creds["username"],
+                "db_role": vault_creds["role"],
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+            # Store connection info for audit
+            self.connection_audit[user_info["sub"]] = {
+                "db_username": vault_creds["username"],
+                "role": vault_creds["role"],
+                "connected_at": datetime.utcnow().isoformat(),
+                "ttl": vault_creds["ttl"]
+            }
+            
+            return client
+            
+        except Exception as e:
+            # Log connection failure
+            logging.error({
+                "event": "database_connection_failed",
+                "user_id": user_info["sub"],
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            raise
+```
+
+### **Step 6: Complete Audit Trail Validation**
+
+#### **Audit Trail Query Examples**
+```python
+# Audit trail validation functions
+
+def get_user_session_trail(user_id: str, session_id: str = None):
+    """Get complete audit trail for a user session"""
+    
+    # Query all logs for user
+    query = {"user_id": user_id}
+    if session_id:
+        query["session_id"] = session_id
+    
+    # Get all events for user
+    events = db.audit_logs.find(query).sort("timestamp", 1)
+    
+    return {
+        "user_id": user_id,
+        "session_id": session_id,
+        "events": list(events),
+        "total_events": events.count()
+    }
+
+def get_database_access_trail(user_id: str):
+    """Get database access trail for a user"""
+    
+    events = db.audit_logs.find({
+        "user_id": user_id,
+        "event": {"$in": [
+            "database_connected",
+            "database_query_executed",
+            "vault_credentials_generated"
+        ]}
+    }).sort("timestamp", 1)
+    
+    return {
+        "user_id": user_id,
+        "database_events": list(events),
+        "total_db_events": events.count()
+    }
+
+def get_vault_credential_trail(user_id: str):
+    """Get Vault credential generation trail for a user"""
+    
+    events = db.audit_logs.find({
+        "user_id": user_id,
+        "event": {"$in": [
+            "vault_auth_attempt",
+            "vault_auth_success",
+            "dynamic_credentials_generated"
+        ]}
+    }).sort("timestamp", 1)
+    
+    return {
+        "user_id": user_id,
+        "vault_events": list(events),
+        "total_vault_events": events.count()
+    }
+```
+
+### **Step 7: Real-World Audit Trail Example**
+
+#### **Complete User Session Trace**
+```json
+{
+  "user_session": {
+    "user_id": "user-12345",
+    "user_name": "John Doe",
+    "user_email": "john.doe@company.com",
+    "session_id": "sess-abc123",
+    "login_time": "2024-01-15T10:30:00Z",
+    "total_events": 8
+  },
+  "audit_trail": [
+    {
+      "event": "user_authenticated",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "user_id": "user-12345",
+      "user_groups": ["Products.ReadWrite"],
+      "ip_address": "192.168.1.100"
+    },
+    {
+      "event": "agent_request_received",
+      "timestamp": "2024-01-15T10:30:15Z",
+      "request_id": "req-xyz789",
+      "user_id": "user-12345",
+      "prompt": "list all products"
+    },
+    {
+      "event": "obo_token_exchange",
+      "timestamp": "2024-01-15T10:30:16Z",
+      "request_id": "req-xyz789",
+      "user_id": "user-12345",
+      "agent_jwt_oid": "user-12345"
+    },
+    {
+      "event": "mcp_request_received",
+      "timestamp": "2024-01-15T10:30:17Z",
+      "request_id": "req-xyz789",
+      "user_id": "user-12345",
+      "tool": "list_products"
+    },
+    {
+      "event": "vault_auth_attempt",
+      "timestamp": "2024-01-15T10:30:18Z",
+      "user_id": "user-12345",
+      "user_groups": ["Products.ReadWrite"]
+    },
+    {
+      "event": "vault_auth_success",
+      "timestamp": "2024-01-15T10:30:19Z",
+      "user_id": "user-12345",
+      "vault_token_ttl": 3600
+    },
+    {
+      "event": "dynamic_credentials_generated",
+      "timestamp": "2024-01-15T10:30:20Z",
+      "user_id": "user-12345",
+      "role": "readwrite-role",
+      "vault_username": "v-token-readwrite-user12345-abc123"
+    },
+    {
+      "event": "database_query_executed",
+      "timestamp": "2024-01-15T10:30:21Z",
+      "request_id": "req-xyz789",
+      "user_id": "user-12345",
+      "query": "products.find()",
+      "result_count": 5
+    }
+  ]
+}
+```
+
+### **Step 8: Validation Commands**
+
+#### **Command-Line Validation Tools**
+```bash
+# Check user session trail
+curl -X GET "http://localhost:8000/audit/user/user-12345/session/sess-abc123" \
+     -H "Authorization: Bearer $ADMIN_JWT"
+
+# Check database access for user
+curl -X GET "http://localhost:8000/audit/user/user-12345/database" \
+     -H "Authorization: Bearer $ADMIN_JWT"
+
+# Check Vault credential generation
+curl -X GET "http://localhost:8000/audit/user/user-12345/vault" \
+     -H "Authorization: Bearer $ADMIN_JWT"
+
+# Check all events for a specific request
+curl -X GET "http://localhost:8000/audit/request/req-xyz789" \
+     -H "Authorization: Bearer $ADMIN_JWT"
+```
+
+#### **Database Query Validation**
+```python
+# Direct database audit queries
+def validate_user_traceability(user_id: str):
+    """Validate complete user traceability"""
+    
+    # Check authentication events
+    auth_events = db.audit_logs.find({
+        "user_id": user_id,
+        "event": "user_authenticated"
+    })
+    
+    # Check agent requests
+    agent_events = db.audit_logs.find({
+        "user_id": user_id,
+        "event": "agent_request_received"
+    })
+    
+    # Check database access
+    db_events = db.audit_logs.find({
+        "user_id": user_id,
+        "event": "database_query_executed"
+    })
+    
+    # Check Vault credential generation
+    vault_events = db.audit_logs.find({
+        "user_id": user_id,
+        "event": "dynamic_credentials_generated"
+    })
+    
+    return {
+        "user_id": user_id,
+        "authentication_events": list(auth_events),
+        "agent_requests": list(agent_events),
+        "database_access": list(db_events),
+        "vault_credentials": list(vault_events),
+        "traceability_complete": len(list(auth_events)) > 0 and len(list(db_events)) > 0
+    }
+```
+
+### **Benefits of Complete Traceability**
+
+#### **1. Compliance and Auditing**
+- **Complete Audit Trail**: Every action traceable to specific user
+- **Regulatory Compliance**: Meets SOX, GDPR, HIPAA requirements
+- **Forensic Analysis**: Detailed logs for security investigations
+
+#### **2. Security Monitoring**
+- **Anomaly Detection**: Unusual user behavior patterns
+- **Access Monitoring**: Real-time monitoring of database access
+- **Credential Tracking**: Monitor Vault credential generation and usage
+
+#### **3. Operational Insights**
+- **User Behavior**: Understanding how users interact with the system
+- **Performance Monitoring**: Track request processing times
+- **Error Analysis**: Detailed error logs with user context
+
+This comprehensive audit trail ensures that **every user action is completely traceable** from authentication through database access, providing complete visibility into user behavior and system security.
+
 ## 🏗️ Architecture Overview
 
 ```
