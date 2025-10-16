@@ -61,6 +61,303 @@ Every component validates incoming tokens:
 - Issuer verification
 - Group claim extraction
 
+## 🔄 Identity Propagation vs Service Accounts
+
+### **Traditional Service Account Approach (❌ Vulnerable)**
+
+In conventional architectures, services use their own elevated credentials to access resources:
+
+```python
+# ❌ Traditional approach - Service account
+class ProductService:
+    def __init__(self):
+        # Service uses its own elevated credentials
+        self.db_client = MongoClient("mongodb://service-account:admin-password@db:27017")
+    
+    def get_products(self, user_request):
+        # Service acts with its own privileges, not user's
+        return self.db_client.products.find()  # Admin access for all users!
+```
+
+**Problems with Service Accounts:**
+- **Privilege Escalation**: Users get admin-level access through the service
+- **No User Context**: Database doesn't know which user made the request
+- **Audit Gaps**: All actions appear to come from the service account
+- **Blast Radius**: Compromise of service account exposes all data
+
+### **Our Identity Propagation Approach (✅ Secure)**
+
+Instead of service accounts, we propagate the user's identity through every service:
+
+```python
+# ✅ Our approach - Identity propagation
+class ProductService:
+    def __init__(self):
+        self.vault_client = VaultClient()
+    
+    def get_products(self, user_jwt):
+        # 1. Extract user identity from JWT
+        user_info = self.validate_jwt(user_jwt)
+        
+        # 2. Get user-specific database credentials from Vault
+        db_creds = self.vault_client.get_user_credentials(user_jwt)
+        
+        # 3. Connect to database with user's credentials
+        db_client = MongoClient(f"mongodb://{db_creds.username}:{db_creds.password}@db:27017")
+        
+        # 4. Database knows exactly which user is making the request
+        return db_client.products.find({"user_id": user_info.sub})
+```
+
+### **Identity Flow Through the System**
+
+#### **Step 1: User Authentication**
+```python
+# products-web/app.py
+def authenticate_user():
+    # User logs in with Microsoft Entra ID
+    user_jwt = get_oauth_token()  # Contains user identity
+    
+    # Store user JWT in session
+    st.session_state.user_jwt = user_jwt
+    return user_jwt
+```
+
+#### **Step 2: Agent Request with User Identity**
+```python
+# products-web/app.py
+def call_agent(user_prompt):
+    user_jwt = st.session_state.user_jwt
+    
+    # Send user JWT to agent (not service account token)
+    response = requests.post(
+        "http://products-agent:8001/agent/invoke",
+        headers={"Authorization": f"Bearer {user_jwt}"},  # User's JWT
+        json={"prompt": user_prompt}
+    )
+    return response.json()
+```
+
+#### **Step 3: Agent Delegates User Identity**
+```python
+# products-agent/auth/entra_token_service.py
+class EntraTokenService:
+    def exchange_token(self, user_jwt):
+        # Exchange user JWT for agent-scoped JWT (On-Behalf-Of flow)
+        # The agent JWT still contains the original user's identity
+        agent_jwt = self.obo_exchange(user_jwt)
+        
+        # Agent JWT contains:
+        # - Original user ID (oid claim)
+        # - Agent permissions (scp claim)
+        # - User's groups (groups claim)
+        return agent_jwt
+```
+
+#### **Step 4: MCP Server Uses User Identity for Database Access**
+```python
+# products-mcp/vault_client.py
+class VaultClient:
+    def get_mongodb_credentials(self, agent_jwt):
+        # 1. Authenticate with Vault using agent JWT (which contains user identity)
+        vault_token = self.vault.auth.jwt(agent_jwt)
+        
+        # 2. Extract user information from JWT
+        user_info = self.decode_jwt(agent_jwt)
+        user_groups = user_info.get("groups", [])
+        
+        # 3. Generate user-specific database credentials based on user's groups
+        if "Products.ReadWrite" in user_groups:
+            role = "readwrite-role"
+        elif "Products.ReadOnly" in user_groups:
+            role = "readonly-role"
+        else:
+            raise PermissionError("User has no product access")
+        
+        # 4. Get dynamic credentials for this specific user
+        creds = self.vault.read(f"database/creds/{role}")
+        
+        # 5. Return user-specific credentials
+        return {
+            "username": creds["username"],  # e.g., "v-token-readonly-user123-abc"
+            "password": creds["password"],  # Unique password for this user
+            "ttl": creds["lease_duration"]  # Short-lived (1 hour)
+        }
+```
+
+#### **Step 5: Database Operations with User Context**
+```python
+# products-mcp/db_utils.py
+class DatabaseManager:
+    def get_mongo_client(self, user_jwt):
+        # Get user-specific credentials
+        creds = self.vault_client.get_mongodb_credentials(user_jwt)
+        
+        # Connect with user's credentials
+        client = MongoClient(
+            host=self.config.db_host,
+            port=self.config.db_port,
+            username=creds["username"],
+            password=creds["password"]
+        )
+        
+        # Database now knows exactly which user is connected
+        return client
+```
+
+### **Identity Claims Throughout the Chain**
+
+#### **User JWT Claims**
+```json
+{
+  "sub": "user-12345",
+  "oid": "user-12345",
+  "aud": "api://docloudright.onmicrosoft.com/products-web",
+  "scp": "openid profile email",
+  "groups": ["Products.ReadWrite", "Users.Manage"],
+  "name": "John Doe",
+  "email": "john.doe@company.com"
+}
+```
+
+#### **Agent JWT Claims (After OBO Exchange)**
+```json
+{
+  "sub": "agent-service",
+  "oid": "user-12345",  // Original user ID preserved!
+  "aud": "api://docloudright.onmicrosoft.com/products-agent",
+  "scp": "api://docloudright.onmicrosoft.com/products-mcp/Products.Read",
+  "groups": ["Products.ReadWrite", "Users.Manage"],  // User's groups preserved!
+  "name": "John Doe",  // User's name preserved!
+  "email": "john.doe@company.com"  // User's email preserved!
+}
+```
+
+#### **Vault Policy Based on User Identity**
+```hcl
+# Vault policy that uses user's group membership
+path "database/creds/readwrite-role" {
+  capabilities = ["read"]
+  required_parameters = ["groups"]
+  allowed_parameters = {
+    "groups" = ["Products.ReadWrite"]  // Only users with this group
+  }
+}
+
+# Policy generates user-specific database credentials
+# Username: v-token-readwrite-user12345-abc123
+# Password: A1b2C3d4E5f6... (unique per user)
+```
+
+### **Benefits of Identity Propagation**
+
+#### **1. Complete Audit Trail**
+```python
+# Every database operation is traceable to a specific user
+db.logs.insert_one({
+    "operation": "products.find",
+    "user_id": "user-12345",
+    "user_name": "John Doe",
+    "user_email": "john.doe@company.com",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "ip_address": "192.168.1.100"
+})
+```
+
+#### **2. Granular Access Control**
+```python
+# Users only see data they're authorized for
+def get_products(user_jwt):
+    user_info = validate_jwt(user_jwt)
+    
+    if "Products.ReadWrite" in user_info.groups:
+        # ReadWrite users see all products
+        return db.products.find()
+    elif "Products.ReadOnly" in user_info.groups:
+        # ReadOnly users see only published products
+        return db.products.find({"status": "published"})
+    else:
+        # No access
+        raise PermissionError("No product access")
+```
+
+#### **3. Dynamic Credential Generation**
+```python
+# Each user gets unique database credentials
+def generate_user_credentials(user_jwt):
+    user_info = validate_jwt(user_jwt)
+    
+    # Credentials are user-specific and short-lived
+    return {
+        "username": f"v-token-{user_info.role}-{user_info.sub}-{random_id}",
+        "password": generate_secure_password(),  # Unique per user
+        "ttl": 3600,  # 1 hour expiration
+        "permissions": get_user_permissions(user_info.groups)
+    }
+```
+
+#### **4. Zero Trust Validation**
+```python
+# Every service validates the user's identity
+def validate_user_identity(jwt_token):
+    # 1. Verify JWT signature
+    payload = jwt.decode(jwt_token, verify=True)
+    
+    # 2. Check token expiry
+    if payload["exp"] < time.time():
+        raise TokenExpiredError()
+    
+    # 3. Validate audience
+    if payload["aud"] != expected_audience:
+        raise InvalidAudienceError()
+    
+    # 4. Extract user information
+    return {
+        "user_id": payload["sub"],
+        "groups": payload.get("groups", []),
+        "permissions": map_groups_to_permissions(payload.get("groups", []))
+    }
+```
+
+### **Comparison: Service Account vs Identity Propagation**
+
+| Aspect | Service Account (❌) | Identity Propagation (✅) |
+|--------|---------------------|---------------------------|
+| **Database Access** | Same admin credentials for all users | Unique credentials per user |
+| **Audit Trail** | All actions from service account | Every action traceable to user |
+| **Access Control** | Binary (all or nothing) | Granular based on user groups |
+| **Credential Rotation** | Manual, infrequent | Automatic, per-user |
+| **Blast Radius** | High (admin access) | Low (user-specific access) |
+| **Compliance** | Difficult to prove user access | Complete user activity logs |
+| **Security** | Privilege escalation risk | Least privilege principle |
+
+### **Real-World Example**
+
+**Scenario**: User "Alice" (ReadOnly) and User "Bob" (ReadWrite) both request product data.
+
+#### **With Service Accounts (❌)**
+```python
+# Both users get admin access through service account
+alice_request → service_account → admin_db_creds → full_access
+bob_request   → service_account → admin_db_creds → full_access
+
+# Database logs show:
+# "service_account accessed products table" (no user context)
+```
+
+#### **With Identity Propagation (✅)**
+```python
+# Each user gets appropriate access based on their identity
+alice_request → alice_jwt → readonly_db_creds → limited_access
+bob_request   → bob_jwt   → readwrite_db_creds → full_access
+
+# Database logs show:
+# "alice@company.com (readonly-user123-abc) accessed products table"
+# "bob@company.com (readwrite-user456-def) accessed products table"
+```
+
+This identity propagation approach ensures that **every action in the system is traceable to a specific user** and that **users only get the permissions they're authorized for**, completely eliminating the Confused Deputy Problem.
+
 ## 🏗️ Architecture Overview
 
 ```
