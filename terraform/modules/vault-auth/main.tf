@@ -32,6 +32,13 @@ resource "vault_database_secret_backend_connection" "docdb" {
     username       = var.docdb_username
     password       = var.docdb_password
   }
+
+  # Add timeout configuration to prevent destroy issues
+  timeouts {
+    create = "5m"
+    update = "5m"
+    delete = "10m"
+  }
 }
 
 resource "vault_database_secret_backend_role" "readonly" {

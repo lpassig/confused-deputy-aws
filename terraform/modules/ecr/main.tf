@@ -2,6 +2,7 @@
 resource "aws_ecr_repository" "products_web" {
   name                 = "${var.name_prefix}-products-web"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -17,6 +18,7 @@ resource "aws_ecr_repository" "products_web" {
 resource "aws_ecr_repository" "products_agent" {
   name                 = "${var.name_prefix}-products-agent"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -32,6 +34,7 @@ resource "aws_ecr_repository" "products_agent" {
 resource "aws_ecr_repository" "products_mcp" {
   name                 = "${var.name_prefix}-products-mcp"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true

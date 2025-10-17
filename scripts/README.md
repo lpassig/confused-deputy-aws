@@ -40,6 +40,11 @@ This directory contains automated scripts that handle Azure AD client secret upd
 - **Action**: Updates docker-compose.yml files to use variables instead of hardcoded values
 - **Usage**: Run once to convert hardcoded values to variables
 
+### 7. `cleanup-ecr-images.sh` - ECR Repository Cleanup
+- **Purpose**: Cleans up ECR repositories before Terraform destroy to prevent "RepositoryNotEmptyException" errors
+- **Action**: Deletes all images (tagged and untagged) from ECR repositories
+- **Usage**: Run before `terraform destroy` to ensure clean destruction
+
 ## 🚀 Quick Start
 
 ### Initial Setup (One-time)
@@ -67,6 +72,15 @@ This directory contains automated scripts that handle Azure AD client secret upd
 ```bash
 # Run after terraform apply
 ./scripts/terraform-post-apply.sh
+```
+
+### ECR Cleanup (Before Destroy)
+```bash
+# Clean up ECR repositories before terraform destroy
+./scripts/cleanup-ecr-images.sh
+
+# Then run terraform destroy
+terraform destroy
 ```
 
 ## ⚙️ Configuration Management
@@ -161,6 +175,25 @@ terraform apply && ./scripts/terraform-post-apply.sh
   - Log Pattern: `invalid_client|AADSTS7000215|Authentication failed`
 
 ## 🔍 Troubleshooting
+
+### ECR Repository Cleanup
+If you encounter "RepositoryNotEmptyException" errors during `terraform destroy`, use the cleanup script:
+
+```bash
+# Clean up all ECR repositories
+./scripts/cleanup-ecr-images.sh
+
+# Or specify a custom prefix
+./scripts/cleanup-ecr-images.sh my-custom-prefix
+
+# Show help
+./scripts/cleanup-ecr-images.sh --help
+```
+
+The script will:
+1. Delete all untagged images from ECR repositories
+2. Delete all tagged images from ECR repositories
+3. Allow Terraform destroy to succeed without errors
 
 ### Check Script Status
 ```bash
