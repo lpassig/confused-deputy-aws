@@ -1,3 +1,6 @@
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}
+
 # Generate random suffix for unique resource naming
 resource "random_string" "suffix" {
   length  = 3
