@@ -19,6 +19,13 @@ resource "hcp_vault_cluster" "main" {
     cloudwatch_region            = var.hvn_region
   }
 
+  # Allow ample time for HCP to provision and report operation status
+  timeouts {
+    create = "45m"
+    update = "45m"
+    delete = "45m"
+  }
+
   lifecycle {
     prevent_destroy = false
   }
