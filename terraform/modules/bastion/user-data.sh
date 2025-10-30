@@ -3,7 +3,7 @@ set -e
 # Update and install dependencies
 
 sudo apt-get update -y
-sudo apt-get install -y gnupg unzip curl wget jq
+sudo apt-get install -y gnupg unzip curl wget jq git nginx
 
 # Install Docker (official instructions for Ubuntu 22.04)
 sudo apt-get install -y ca-certificates apt-transport-https software-properties-common lsb-release
@@ -90,22 +90,41 @@ echo "Products collection initialized successfully!"
 # Clean up
 rm /tmp/init_collection.js
 
-# Ensure ALB health checks pass by serving HTTP 200 on port 8501
-cat > /home/ubuntu/health_server.py << 'PYEOF'
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+# Configure nginx to listen on 8080 and proxy to internal services
+sudo tee /etc/nginx/sites-available/products >/dev/null <<'NGINX'
+server {
+    listen 8080 default_server;
+    listen [::]:8080 default_server;
 
-class Handler(SimpleHTTPRequestHandler):
-    def do_GET(self):
-        # Always return 200 OK with a simple message
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(b"OK")
+    # Health endpoint for ALB
+    location = /health {
+        return 200 'OK';
+        add_header Content-Type text/plain;
+    }
 
-if __name__ == "__main__":
-    server = HTTPServer(("0.0.0.0", 8501), Handler)
-    server.serve_forever()
-PYEOF
+    # ProductsWeb (Streamlit) running on 127.0.0.1:8501
+    location / {
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_pass http://127.0.0.1:8501/;
+    }
 
-chown ubuntu:ubuntu /home/ubuntu/health_server.py
-runuser -l ubuntu -c 'nohup python3 /home/ubuntu/health_server.py >/home/ubuntu/health_server.log 2>&1 &'
+    # ProductsAgent API on 127.0.0.1:8001
+    location /api/agent/ {
+        proxy_set_header Host $host;
+        proxy_pass http://127.0.0.1:8001/;
+    }
+
+    # ProductsMCP API on 127.0.0.1:8000
+    location /api/mcp/ {
+        proxy_set_header Host $host;
+        proxy_pass http://127.0.0.1:8000/;
+    }
+}
+NGINX
+
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf /etc/nginx/sites-available/products /etc/nginx/sites-enabled/products
+sudo systemctl enable --now nginx

@@ -87,21 +87,21 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# Security group rule to allow ALB to access bastion on port 8501
+# Security group rule to allow ALB to access bastion on port 8080
 resource "aws_security_group_rule" "bastion_from_alb" {
   type                     = "ingress"
-  from_port                = 8501
-  to_port                  = 8501
+  from_port                = 8080
+  to_port                  = 8080
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.alb_sg.id
   security_group_id        = aws_security_group.bastion.id
-  description              = "HTTP access from ALB on port 8501"
+  description              = "HTTP access from ALB on port 8080"
 }
 
 # Target group for bastion host
 resource "aws_lb_target_group" "bastion_tg" {
   name     = "${var.name_prefix}-bastion-tg"
-  port     = 8501
+  port     = 8080
   protocol = "HTTP"
   vpc_id   = var.vpc_id
 
@@ -110,7 +110,7 @@ resource "aws_lb_target_group" "bastion_tg" {
     healthy_threshold   = 2
     interval            = 30
     matcher             = "200"
-    path                = "/"
+    path                = "/health"
     port                = "traffic-port"
     protocol            = "HTTP"
     timeout             = 10
@@ -126,7 +126,7 @@ resource "aws_lb_target_group" "bastion_tg" {
 resource "aws_lb_target_group_attachment" "bastion_attachment" {
   target_group_arn = aws_lb_target_group.bastion_tg.arn
   target_id        = aws_instance.bastion.id
-  port             = 8501
+  port             = 8080
 }
 
 # Application Load Balancer

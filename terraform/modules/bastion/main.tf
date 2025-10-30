@@ -52,13 +52,7 @@ resource "aws_security_group" "bastion" {
     description = "SSH access from internet"
   }
 
-  ingress {
-    from_port   = 8501
-    to_port     = 8501
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "HTTP access from ALB on port 8501"
-  }
+  # No public web ingress here; ALB SG-specific ingress is managed in alb-resources.tf
 
   egress {
     from_port   = 0
