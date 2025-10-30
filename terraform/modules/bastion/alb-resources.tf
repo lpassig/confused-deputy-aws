@@ -105,6 +105,10 @@ resource "aws_lb_target_group" "bastion_tg" {
   protocol = "HTTP"
   vpc_id   = var.vpc_id
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   health_check {
     enabled             = true
     healthy_threshold   = 2
