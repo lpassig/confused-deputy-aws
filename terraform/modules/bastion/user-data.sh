@@ -89,3 +89,23 @@ echo "Products collection initialized successfully!"
 
 # Clean up
 rm /tmp/init_collection.js
+
+# Ensure ALB health checks pass by serving HTTP 200 on port 8501
+cat > /home/ubuntu/health_server.py << 'PYEOF'
+from http.server import SimpleHTTPRequestHandler, HTTPServer
+
+class Handler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        # Always return 200 OK with a simple message
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+if __name__ == "__main__":
+    server = HTTPServer(("0.0.0.0", 8501), Handler)
+    server.serve_forever()
+PYEOF
+
+chown ubuntu:ubuntu /home/ubuntu/health_server.py
+runuser -l ubuntu -c 'nohup python3 /home/ubuntu/health_server.py >/home/ubuntu/health_server.log 2>&1 &'
