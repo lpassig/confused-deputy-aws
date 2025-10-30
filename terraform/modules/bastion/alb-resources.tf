@@ -100,7 +100,7 @@ resource "aws_security_group_rule" "bastion_from_alb" {
 
 # Target group for bastion host
 resource "aws_lb_target_group" "bastion_tg" {
-  name     = "${var.name_prefix}-bastion-tg"
+  name     = "${var.name_prefix}-bastion-tg-8080"
   port     = 8080
   protocol = "HTTP"
   vpc_id   = var.vpc_id
